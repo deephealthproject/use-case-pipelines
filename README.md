@@ -9,6 +9,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on two different datasets (_MNIS
 - (Optional) Download the ISIC dataset.
 
 ### Datasets
+The datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format).
 
 - _MNIST_: Automatically downloaded and extracted by CMake.
 - _ISIC_: Download it from [here](https://drive.google.com/uc?id=1wo3Ai0gBTwy42s89aa3Jl20B7EGm7nKa&export=download) and extract it. Put the dataset path into the `skin_lesion_classification.cpp` source file.
