@@ -102,20 +102,23 @@ int main()
                 net->fiterr[p] = net->fiterr[p + 1] = 0.0;
             }
         }
-
-        save(net, "isic_classification_checkpoint.bin");
-
-        // TODO evaluation does not yet allow batched execution
-        d.SetSplit("test");
-        tensor x_test;
-        tensor y_test;
-        TestToTensor(d, size, x_test, y_test);
-
-        // Preprocessing
-        div(x_test, 255.0);
-        cout << "Evaluate test:" << endl;
-        evaluate(net, { x_test }, { y_test });
-
-        return EXIT_SUCCESS;
     }
+	
+	save(net, "isic_classification_checkpoint.bin");
+    delete x_train;
+    delete y_train;
+
+    // Evaluation
+    // TODO evaluation does not yet allow batched execution
+    d.SetSplit("test");
+    tensor x_test;
+    tensor y_test;
+    TestToTensor(d, size, x_test, y_test);
+
+    // Preprocessing
+    div(x_test, 255.0);
+    cout << "Evaluate test:" << endl;
+    evaluate(net, { x_test }, { y_test });
+
+    return EXIT_SUCCESS;
 }
