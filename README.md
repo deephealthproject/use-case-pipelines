@@ -25,3 +25,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 1. The project creates three executables: MNIST_FIT, MNIST_BATCH and SKIN_LESION_CLASSIFICATION.
 	1. MNIST_FIT loads the entire dataset in memory, after that trains the neural network with batches of the dataset.
 	1. MNIST_BATCH and SKIN_LESION_CLASSIFICATION train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
+
+## TODO
+- Apply image augmentations when a batch is loaded
+- Add a segmentation example
