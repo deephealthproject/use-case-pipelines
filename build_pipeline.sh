@@ -34,4 +34,4 @@ make -j$(nproc) && make install
 cd $CUR_PATH
 mkdir -p bin && cd bin
 cmake -G "Unix Makefiles" -DECVL_DIR=$CUR_PATH/deephealth/ecvl/bin/install ..
-make -j$(nproc) && ./SKIN_LESION_CLASSIFICATION
+make -j$(nproc) && ./MNIST_BATCH
