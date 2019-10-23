@@ -4,7 +4,7 @@ CUR_PATH=`pwd`
 mkdir -p deephealth && cd deephealth
 
 ############ EDDL
-git clone git@github.com:deephealthproject/eddl.git
+git clone git@github.com:deephealthproject/eddl.git --recursive
 cd eddl
 git checkout 9b4ac771c91e84495c5d0fbfb21edad6703cb339 # Develop branch
 mkdir -p bin && cd bin
