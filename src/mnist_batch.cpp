@@ -45,7 +45,7 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("mnist/mnist.yml", batch_size, "training", ColorType::GRAY);
+    DLDataset d("mnist/mnist.yml", batch_size, "training", ctype);
 
     // Prepare tensors which store batch
     tensor x_train = T({ batch_size, d.n_channels_, size[0], size[1] });
