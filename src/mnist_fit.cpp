@@ -45,7 +45,7 @@ int main()
     TrainingToTensor(d, size, x_train, y_train, ctype);
 
     // Preprocessing
-    div(x_train, 255.0);
+    eddlT::div(x_train, 255.0);
     cout << "Starting training" << endl;
     fit(net, { x_train }, { y_train }, batch_size, epochs);
     save(net, "mnist_checkpoint.bin");
@@ -56,7 +56,7 @@ int main()
     TestToTensor(d, size, x_test, y_test, ctype);
 
     // Preprocessing
-    div(x_test, 255.0);
+    eddlT::div(x_test, 255.0);
     cout << "Evaluate test:" << endl;
     evaluate(net, { x_test }, { y_test });
 

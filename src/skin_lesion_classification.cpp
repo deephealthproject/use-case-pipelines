@@ -45,8 +45,8 @@ int main()
     DLDataset d("D:/datasets/isic_2019/isic_skin_lesion/isic.yml", batch_size, "training");
 
     // Prepare tensors which store batch
-    tensor x_train = T({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y_train = T({ batch_size, static_cast<int>(d.classes_.size()) });
+    tensor x_train = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y_train = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
 
     // Set batch size
     resize_model(net, batch_size);
@@ -81,11 +81,11 @@ int main()
             LoadBatch(d, size, x_train, y_train);
 
             // Preprocessing
-            div(x_train, 255.0);
+            eddlT::div(x_train, 255.0);
 
             // Prepare data
-            vtensor tx{ x_train->data };
-            vtensor ty{ y_train->data };
+            vtensor tx{ x_train };
+            vtensor ty{ y_train };
 
             // Train batch
             train_batch(net, tx, ty, indices);
@@ -116,7 +116,7 @@ int main()
     TestToTensor(d, size, x_test, y_test);
 
     // Preprocessing
-    div(x_test, 255.0);
+    eddlT::div(x_test, 255.0);
     cout << "Evaluate test:" << endl;
     evaluate(net, { x_test }, { y_test });
 
