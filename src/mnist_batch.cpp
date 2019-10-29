@@ -11,8 +11,6 @@ using namespace ecvl;
 using namespace eddl;
 using namespace std;
 
-
-
 int main()
 {
     // Settings
@@ -84,7 +82,7 @@ int main()
             LoadBatch(d, size, x_train, y_train);
 
             // Preprocessing
-            eddlT::div(x_train, 255.0);
+            x_train->div_(255.0);
 
             // Prepare data
             vtensor tx{ x_train };
@@ -119,7 +117,8 @@ int main()
     TestToTensor(d, size, x_test, y_test, ctype);
 
     // Preprocessing
-    eddlT::div(x_test, 255.0);
+    x_test->div_(255.0);
+
     cout << "Evaluate test:" << endl;
     evaluate(net, { x_test }, { y_test });
 

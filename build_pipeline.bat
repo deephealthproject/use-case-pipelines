@@ -8,7 +8,7 @@ cd eddl
 git checkout 9e11e447efb3184eaf8f747336eba9ce7fb86674
 mkdir bin
 cd bin
-cmake -G "Visual Studio 15 2017 Win64" -DBUILD_TARGET=CPU -DEDDL_WITH_CUDA=OFF -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Visual Studio 15 2017 Win64" -DBUILD_TARGET=GPU -DEDDL_WITH_CUDA=ON -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config Release --target ALL_BUILD
 cmake --build . --config Release --target INSTALL
 

@@ -14,8 +14,8 @@ using namespace std;
 int main()
 {
     // Settings
-    int epochs = 20;
-    int batch_size = 1;
+    int epochs = 50;
+    int batch_size = 12;
     int num_classes = 8;
     std::vector<int> size{ 224,224 }; // Size of images
 
@@ -81,7 +81,7 @@ int main()
             LoadBatch(d, size, x_train, y_train);
 
             // Preprocessing
-            eddlT::div(x_train, 255.0);
+            x_train->div_(255.0);
 
             // Prepare data
             vtensor tx{ x_train };
@@ -103,8 +103,8 @@ int main()
             }
         }
     }
-	
-	save(net, "isic_classification_checkpoint.bin");
+
+    save(net, "isic_classification_checkpoint.bin");
     delete x_train;
     delete y_train;
 
@@ -116,7 +116,7 @@ int main()
     TestToTensor(d, size, x_test, y_test);
 
     // Preprocessing
-    eddlT::div(x_test, 255.0);
+    x_test->div_(255.0);
     cout << "Evaluate test:" << endl;
     evaluate(net, { x_test }, { y_test });
 
