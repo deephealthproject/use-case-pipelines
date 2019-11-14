@@ -42,7 +42,7 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/datasets/isic_2019/isic_skin_lesion/isic.yml", batch_size, "training");
+    DLDataset d("/mnt/data/isic_skin_lesion/isic.yml", batch_size, "training");
 
     // Prepare tensors which store batch
     tensor x_train = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });

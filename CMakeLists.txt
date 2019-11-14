@@ -88,13 +88,13 @@ set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION)
 
 set(ECVL_BUILD ON CACHE BOOL "Whether to build ECVL or not (requires ECVL)")
 
-find_package(ECVL)
-if(ECVL_FOUND)
+find_package(ecvl)
+if(ecvl_FOUND)
     target_link_libraries(MODELS ECVL_CORE ECVL_EDDL DATASET_PARSER)
     target_link_libraries(MNIST_FIT MODELS)
     target_link_libraries(MNIST_BATCH MODELS)
     target_link_libraries(SKIN_LESION_CLASSIFICATION MODELS)
-    include_directories("${ECVL_DIR}/include")
+    include_directories("${ecvl_DIR}/include")
     message(STATUS "ECVL found")
 endif()
 
