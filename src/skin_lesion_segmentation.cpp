@@ -50,29 +50,30 @@ void Squeeze(tensor& t)
     }
 }
 
-void main()
+int main()
 {
     // Settings
     int epochs = 10;
     int batch_size = 1;
     int num_classes = 1;
-    std::vector<int> size{ 256,256 }; // Size of images
+    std::vector<int> size{ 512,512 }; // Size of images
 
     std::random_device rd;
     std::mt19937 g(rd());
 
     // Define network
     layer in = Input({ 3, size[0],  size[1] });
-    layer out = UNetWithPadding(in, num_classes);
+    //layer out = UNetWithPadding(in, num_classes);
+    layer out = SegNet(in, num_classes);
     layer out_sigm = Sigmoid(out);
     model net = Model({ in }, { out_sigm });
 
     // Build model
     build(net,
         //sgd(0.001, 0.9), // Optimizer
-        adam(0.001), //Optimizer
+        adam(0.0001), //Optimizer
         //{ "cross_entropy" }, // Losses
-        { "soft_cross_entropy" }, // Losses
+        { "cross_entropy" }, // Losses
         //{ "categorical_accuracy" }, // Metrics
         { "mean_squared_error" } // Metrics
     );
@@ -130,11 +131,11 @@ void main()
             //train_batch(net, tx, ty, indices);
             zeroGrads(net);
             forward(net, tx);
+            net->compute_loss();
 
             backward(net, ty);
             update(net);
 
-            net->compute_loss();
             print_loss(net, j);
             printf("\n");
             //forward(net, batch_size);
@@ -155,5 +156,5 @@ void main()
     delete x_train;
     delete y_train;
 
-    // Evaluate
+    return EXIT_SUCCESS;
 }

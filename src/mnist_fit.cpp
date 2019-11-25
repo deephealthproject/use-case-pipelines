@@ -23,10 +23,6 @@ int main()
     layer out = LeNet(in, num_classes); // Model LeNet
     model net = Model({ in }, { out });
 
-    // View model
-    cout << summary(net) << endl;
-    plot(net, "model.pdf");
-
     // Build model
     build(net,
         sgd(0.001, 0.9), // Optimizer
@@ -35,6 +31,10 @@ int main()
         CS_GPU({ 1 })
         //CS_CPU(4) // CPU with 4 threads
     );
+
+    // View model
+    summary(net);
+    plot(net, "model.pdf");
 
     cout << "Reading dataset" << endl;
     Dataset d("mnist/mnist.yml");

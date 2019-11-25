@@ -27,10 +27,6 @@ int main()
     layer out = VGG16(in, num_classes);
     model net = Model({ in }, { out });
 
-    // View model
-    cout << summary(net) << endl;
-    plot(net, "model.pdf");
-
     // Build model
     build(net,
         sgd(0.001, 0.9), // Optimizer
@@ -39,6 +35,10 @@ int main()
         CS_GPU({ 1 })
         //CS_CPU(4) // CPU with 4 threads
     );
+
+    // View model
+    summary(net);
+    plot(net, "model.pdf");
 
     // Read the dataset
     cout << "Reading dataset" << endl;
