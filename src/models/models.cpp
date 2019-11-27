@@ -176,7 +176,7 @@ layer UNetWithPaddingBN(layer x, const int& num_classes)
     return x;
 }
 
-layer SegNet(layer x, const int& num_classes)
+layer SegNetBN(layer x, const int& num_classes)
 {
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
@@ -214,6 +214,49 @@ layer SegNet(layer x, const int& num_classes)
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = UpSampling(x, { 2,2 });
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
+    x = Conv(x, num_classes, { 3,3 }, { 1,1 }, "same");
+
+    return x;
+}
+
+layer SegNet(layer x, const int& num_classes)
+{
+    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+
+    x = UpSampling(x, { 2,2 });
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = UpSampling(x, { 2,2 });
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = UpSampling(x, { 2,2 });
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
+    x = UpSampling(x, { 2,2 });
+    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
+    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
+    x = UpSampling(x, { 2,2 });
+    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
     x = Conv(x, num_classes, { 3,3 }, { 1,1 }, "same");
 
     return x;
