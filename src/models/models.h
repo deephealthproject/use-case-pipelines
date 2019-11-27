@@ -1,3 +1,6 @@
+#ifndef MODELS_H_
+#define MODELS_H_
+
 #include "ecvl/eddl.h"
 
 // Model VGG16
@@ -18,3 +21,5 @@ layer SegNet(layer x, const int& num_classes);
 layer SegNetBN(layer x, const int& num_classes);
 
 layer FakeNet(layer x, const int& num_classes);
+
+#endif // MODELS_H_

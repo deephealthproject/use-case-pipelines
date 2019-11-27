@@ -1,15 +1,18 @@
+#ifndef METRICS_H_
+#define METRICS_H_
+
 #include "ecvl/core.h"
 
-class Eval {
+class Eval
+{
 public:
-    void ResetEval();
     std::vector<float> iou_list_;
     float eps_;
+    void ResetEval();
     float MIoU();
-    float Eval::BinaryIoU(ecvl::Image& img, ecvl::Image& gt);
+    float BinaryIoU(ecvl::Image &img, ecvl::Image &gt);
 
-    Eval() 
-    {
-        eps_ = 1e-06;
-    };
+    Eval() : eps_(1e-06) {}
 };
+
+#endif // METRICS_H_

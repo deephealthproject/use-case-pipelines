@@ -24,7 +24,7 @@ int main()
     // Define network
     layer in = Input({ 3, size[0], size[1] });
     //layer out = UNetWithPadding(in, num_classes);
-    layer out = SegNet(in, num_classes);
+    layer out = SegNetBN(in, num_classes);
     layer out_sigm = Sigmoid(out);
     model net = Model({ in }, { out_sigm });
 
@@ -46,7 +46,8 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, "training");
+    // DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, "training");
+    DLDataset d("/mnt/data/DATA/isic_skin_lesion/isic_segmentation.yml", batch_size, "training");
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
