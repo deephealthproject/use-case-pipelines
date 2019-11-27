@@ -15,4 +15,6 @@ layer UNetWithPaddingBN(layer x, const int& num_classes);
 
 layer SegNet(layer x, const int& num_classes);
 
+layer SegNetBN(layer x, const int& num_classes);
+
 layer FakeNet(layer x, const int& num_classes);

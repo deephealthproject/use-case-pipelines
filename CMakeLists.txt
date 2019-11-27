@@ -76,13 +76,17 @@ endif()
 # END: static/dinamic runtime
 #--------------------------------------------------------------------------------------------------------
 
+add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
+add_library(UTILS STATIC "")
 add_executable(MNIST_FIT)
 add_executable(MNIST_BATCH)
 add_executable(SKIN_LESION_CLASSIFICATION)
 add_executable(SKIN_LESION_SEGMENTATION)
 add_subdirectory(src)
+add_subdirectory("src/metrics")
 add_subdirectory("src/models")
+add_subdirectory("src/utils")
 
 # Set SKIN_LESION_CLASSIFICATION as default
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION)
@@ -91,7 +95,9 @@ set(ECVL_BUILD ON CACHE BOOL "Whether to build ECVL or not (requires ECVL)")
 
 find_package(ecvl)
 if(ecvl_FOUND)
-    target_link_libraries(MODELS ECVL_CORE ECVL_EDDL DATASET_PARSER)
+    target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET_PARSER)
+    target_link_libraries(UTILS METRICS)
+    target_link_libraries(MODELS UTILS)
     target_link_libraries(MNIST_FIT MODELS)
     target_link_libraries(MNIST_BATCH MODELS)
     target_link_libraries(SKIN_LESION_CLASSIFICATION MODELS)
