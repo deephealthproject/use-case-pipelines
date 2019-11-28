@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <filesystem>
 
 using namespace ecvl;
 using namespace eddl;
@@ -13,7 +14,7 @@ using namespace std;
 int main()
 {
     // Settings
-    int epochs = 10;
+    int epochs = 20;
     int batch_size = 2;
     int num_classes = 1;
     std::vector<int> size{ 192, 192 }; // Size of images
@@ -21,20 +22,23 @@ int main()
     std::random_device rd;
     std::mt19937 g(rd());
 
+    bool save_images = true;
+
+    if (save_images) {
+        filesystem::create_directory("output_images");
+    }
+
     // Define network
     layer in = Input({ 3, size[0], size[1] });
     //layer out = UNetWithPadding(in, num_classes);
-    layer out = SegNetBN(in, num_classes);
+    layer out = SegNet(in, num_classes);
     layer out_sigm = Sigmoid(out);
     model net = Model({ in }, { out_sigm });
 
     // Build model
     build(net,
-        //sgd(0.001, 0.9), // Optimizer
         adam(0.0001), //Optimizer
-        //{ "cross_entropy" }, // Losses
         { "cross_entropy" }, // Losses
-        //{ "categorical_accuracy" }, // Metrics
         { "mean_squared_error" } // Metrics
     );
 
@@ -46,8 +50,7 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    // DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, "training");
-    DLDataset d("/mnt/data/DATA/isic_skin_lesion/isic_segmentation.yml", batch_size, "training");
+    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, "training");
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
@@ -58,13 +61,14 @@ int main()
     // Set training mode
     set_mode(net, TRMODE);
 
+    // Get number of training samples
+    int num_samples = d.GetSplit().size();
+    int num_batches = num_samples / batch_size;
+
+    // Get number of validation samples
     d.SetSplit("validation");
     int num_samples_validation = d.GetSplit().size();
     int num_batches_validation = num_samples_validation / batch_size;
-
-    d.SetSplit("training");
-    int num_samples = d.GetSplit().size();
-    int num_batches = num_samples / batch_size;
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
@@ -101,7 +105,7 @@ int main()
             cout << endl;
         }
 
-        cout << "Validation: " << endl;
+        cout << "Starting validation:" << endl;
         d.SetSplit("validation");
         d.current_batch_ = 0;
 
@@ -109,7 +113,7 @@ int main()
 
         // Validation for each batch
         for (int j = 0; j < num_batches_validation; ++j, ++d.current_batch_) {
-            cout << "Validation - Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches_validation << ") - ";
+            cout << "Validation - Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches_validation << ") ";
 
             // Load a batch
             LoadBatch(d, size, x, y);
@@ -125,25 +129,29 @@ int main()
             forward(net, tsx);
             tensor output = getTensor(out_sigm);
 
+            // Compute IoU metric adn optionally save the output images
             for (int k = 0; k < batch_size; ++k) {
-
                 tensor img = eddlT::select(output, k);
                 Image img_t = TensorToView(img);
 
                 tensor gt = eddlT::select(y, k);
                 Image gt_t = TensorToView(gt);
 
-                cout << "IoU: " << evaluator.BinaryIoU(img_t, gt_t) << endl;
+                cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
-                ImageSqueeze(img_t);
-                ImWrite("batch_" + to_string(j) + "_output.png", img_t);
+                if (save_images) {
+                    ImageSqueeze(img_t);
+                    Mul(img_t, 255, img_t);
+                    ImWrite("output_images/batch_" + to_string(j) + "_output.png", img_t);
 
-                if (i == 0) {
-                    ImageSqueeze(gt_t);
-                    ImWrite("batch_" + to_string(j) + "_gt.png", gt_t);
+                    if (i == 0) {
+                        ImageSqueeze(gt_t);
+                        Mul(gt_t, 255, gt_t);
+                        ImWrite("output_images/batch_" + to_string(j) + "_gt.png", gt_t);
+                    }
                 }
-
             }
+            cout << endl;
         }
         cout << "----------------------------" << endl;
         cout << "MIoU: " << evaluator.MIoU() << endl;

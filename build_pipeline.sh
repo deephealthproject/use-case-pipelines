@@ -6,7 +6,7 @@ mkdir -p deephealth && cd deephealth
 ############ EDDL
 git clone git@github.com:deephealthproject/eddl.git --recursive
 cd eddl
-git checkout 9e11e447efb3184eaf8f747336eba9ce7fb86674 # Master branch
+git checkout tags/v0.2.1
 mkdir -p bin && cd bin
 cmake -G "Unix Makefiles" -DBUILD_TARGET=GPU -DEDDL_WITH_CUDA=ON -DCMAKE_INSTALL_PREFIX=install ..
 make -j$(nproc) && make install
@@ -32,5 +32,5 @@ make -j$(nproc) && make install
 ############ PIPELINE
 cd $CUR_PATH
 mkdir -p bin && cd bin
-cmake -G "Unix Makefiles" -DECVL_DIR=$CUR_PATH/deephealth/ecvl/bin/install ..
+cmake -G "Unix Makefiles" -Decvl_DIR=$CUR_PATH/deephealth/ecvl/bin/install ..
 make -j$(nproc) && ./MNIST_BATCH
