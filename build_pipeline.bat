@@ -27,7 +27,7 @@ cmake --build . --config Release --target INSTALL
 cd %CUR_PATH%/deephealth
 git clone git@github.com:deephealthproject/ecvl.git
 cd ecvl
-git checkout 4acb1f773ef3ed1c000aa4d2a25445d97314de64
+git checkout a88c883b94bcf3a5ea8126616aba2178514ffac2
 mkdir bin
 cd bin
 cmake -G "Visual Studio 15 2017 Win64" -DOpenCV_DIR=%CUR_PATH%/deephealth/opencv/build -DEDDL_DIR=%CUR_PATH%/deephealth/eddl/bin/install -DECVL_BUILD_EDDL=ON -DECVL_DATASET_PARSER=ON -DECVL_BUILD_GUI=OFF -DCMAKE_INSTALL_PREFIX=install ..
