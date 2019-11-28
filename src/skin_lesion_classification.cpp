@@ -48,10 +48,12 @@ int main()
     tensor x_train = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y_train = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
 
+    
+    // not needed:
     // Set batch size
-    resize_model(net, batch_size);
+    //resize_model(net, batch_size);
     // Set training mode
-    set_mode(net, TRMODE);
+    //set_mode(net, TRMODE);
 
     // Store errors of each output layer
     verr total_loss = { 0 };
@@ -90,6 +92,7 @@ int main()
             // Train batch
             train_batch(net, tx, ty, indices);
 
+             // We should provide API for this:
             // Print errors
             int p = 0;
             for (int k = 0; k < ty.size(); k++, p += 2) {
@@ -99,6 +102,7 @@ int main()
                 cout << net->lout[k]->name.c_str() << "(" << net->losses[k]->name.c_str() << "=" << total_loss[k] / (batch_size * (j + 1)) << "," <<
                     net->metrics[k]->name.c_str() << "=" << total_metric[k] / (batch_size * (j + 1)) << ")" << endl;
 
+                  // this exists reset_loss(net); i think... 
                 net->fiterr[p] = net->fiterr[p + 1] = 0.0;
             }
         }
