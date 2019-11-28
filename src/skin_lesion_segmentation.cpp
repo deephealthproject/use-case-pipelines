@@ -57,9 +57,10 @@ int main()
     tensor y = eddlT::create({ batch_size, 1, size[0], size[1] });
 
     // Set batch size
-    resize_model(net, batch_size);
+    /// These two lines are not really needed:
+    //resize_model(net, batch_size);
     // Set training mode
-    set_mode(net, TRMODE);
+    //set_mode(net, TRMODE);
 
     // Get number of training samples
     int num_samples = d.GetSplit().size();
