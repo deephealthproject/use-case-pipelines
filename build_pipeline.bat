@@ -8,7 +8,7 @@ cd eddl
 git checkout tags/v0.2.1
 mkdir bin
 cd bin
-cmake -G "Visual Studio 15 2017 Win64" -DBUILD_TARGET=GPU -DEDDL_WITH_CUDA=ON -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Visual Studio 15 2017 Win64" -DBUILD_TARGET=CPU -DEDDL_WITH_CUDA=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config Release --target ALL_BUILD
 cmake --build . --config Release --target INSTALL
 
@@ -30,7 +30,7 @@ cd ecvl
 git checkout af6001e218a4c1aaec8a43dd05a3731edef73e73
 mkdir bin
 cd bin
-cmake -G "Visual Studio 15 2017 Win64" -DOpenCV_DIR=%CUR_PATH%/deephealth/opencv/build -DEDDL_DIR=%CUR_PATH%/deephealth/eddl/bin/install -DECVL_BUILD_EDDL=ON -DECVL_DATASET_PARSER=ON -DECVL_BUILD_GUI=OFF -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Visual Studio 15 2017 Win64" -DOpenCV_DIR=%CUR_PATH%/deephealth/opencv/build -Deddl_DIR=%CUR_PATH%/deephealth/eddl/bin/install -DECVL_BUILD_EDDL=ON -DECVL_DATASET_PARSER=ON -DECVL_BUILD_GUI=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config Release --target ALL_BUILD
 cmake --build . --config Release --target INSTALL
 
