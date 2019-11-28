@@ -31,10 +31,10 @@ int main()
     build(net,
         sgd(0.001, 0.9), // Optimizer
         { "soft_cross_entropy" }, // Losses
-        { "categorical_accuracy" }, // Metrics
-        CS_GPU({ 1 })
-        //CS_CPU(4) // CPU with 4 threads
+        { "categorical_accuracy" } // Metrics
     );
+
+    toGPU(net);
 
     // View model
     summary(net);
