@@ -24,7 +24,7 @@ make -j$(nproc) && make install
 cd $CUR_PATH/deephealth
 git clone git@github.com:deephealthproject/ecvl.git
 cd ecvl
-git checkout a88c883b94bcf3a5ea8126616aba2178514ffac2 # Master branch
+git checkout 59c749216b210d53a5c82e9cf76bceb9f662a6a8 # Master branch
 mkdir -p bin && cd bin
 cmake -G "Unix Makefiles" -DOpenCV_DIR=$CUR_PATH/deephealth/opencv/build -DEDDL_DIR=$CUR_PATH/deephealth/eddl/bin/install -DECVL_BUILD_EDDL=ON -DECVL_DATASET_PARSER=ON -DECVL_BUILD_GUI=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$(nproc) && make install
