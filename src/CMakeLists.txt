@@ -7,3 +7,6 @@ target_sources(MNIST_BATCH PRIVATE
 target_sources(SKIN_LESION_CLASSIFICATION PRIVATE
         skin_lesion_classification.cpp
 )
+target_sources(SKIN_LESION_SEGMENTATION PRIVATE
+        skin_lesion_segmentation.cpp
+)

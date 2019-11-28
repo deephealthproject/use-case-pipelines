@@ -27,10 +27,6 @@ int main()
     layer out = VGG16(in, num_classes);
     model net = Model({ in }, { out });
 
-    // View model
-    cout << summary(net) << endl;
-    plot(net, "model.pdf");
-
     // Build model
     build(net,
         sgd(0.001, 0.9), // Optimizer
@@ -40,9 +36,13 @@ int main()
         //CS_CPU(4) // CPU with 4 threads
     );
 
+    // View model
+    summary(net);
+    plot(net, "model.pdf");
+
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("/mnt/data/isic_skin_lesion/isic.yml", batch_size, "training");
+    DLDataset d("D:/datasets/isic_2019/isic_skin_lesion/isic.yml", batch_size, "training");
 
     // Prepare tensors which store batch
     tensor x_train = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });

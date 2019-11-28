@@ -5,7 +5,7 @@ cd deephealth
 :: EDDL
 git clone git@github.com:deephealthproject/eddl.git --recursive
 cd eddl
-git checkout 9e11e447efb3184eaf8f747336eba9ce7fb86674
+git checkout tags/v0.2.1
 mkdir bin
 cd bin
 cmake -G "Visual Studio 15 2017 Win64" -DBUILD_TARGET=GPU -DEDDL_WITH_CUDA=ON -DCMAKE_INSTALL_PREFIX=install ..
@@ -38,6 +38,6 @@ cmake --build . --config Release --target INSTALL
 cd %CUR_PATH%
 mkdir bin
 cd bin
-cmake -G "Visual Studio 15 2017 Win64" -DECVL_DIR=deephealth/ecvl/bin/install ..
+cmake -G "Visual Studio 15 2017 Win64" -Decvl_DIR=deephealth/ecvl/bin/install ..
 cmake --build . --config Release --target ALL_BUILD
 Release\\MNIST_BATCH.exe
