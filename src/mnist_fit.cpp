@@ -48,7 +48,7 @@ int main()
     x_train->div_(255.0);
     cout << "Starting training" << endl;
     fit(net, { x_train }, { y_train }, batch_size, epochs);
-    save(net, "mnist_checkpoint.bin");
+    save(net, "mnist_checkpoint.bin", "bin");
 
     // Evaluation
     tensor x_test;

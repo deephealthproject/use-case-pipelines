@@ -42,22 +42,11 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/datasets/isic_2019/isic_skin_lesion/isic.yml", batch_size, "training");
+    DLDataset d("D:/datasets/isic_2019/isic_skin_lesion/isic.yml", batch_size);
 
     // Prepare tensors which store batch
-    tensor x_train = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y_train = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
-
-    
-    // not needed:
-    // Set batch size
-    //resize_model(net, batch_size);
-    // Set training mode
-    //set_mode(net, TRMODE);
-
-    // Store errors of each output layer
-    verr total_loss = { 0 };
-    verr total_metric = { 0 };
+    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
 
     int num_samples = d.GetSplit().size();
     int num_batches = num_samples / batch_size;
@@ -68,61 +57,59 @@ int main()
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
         // Reset errors
-        total_loss[0] = 0.0;
-        total_metric[0] = 0.0;
+        reset_loss(net);
 
         // Shuffle training list
         shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-        d.current_batch_ = 0;
+        d.ResetCurrentBatch();
 
         // Feed batches to the model
-        for (int j = 0; j < num_batches; ++j, ++d.current_batch_) {
+        for (int j = 0; j < num_batches; ++j) {
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
-            LoadBatch(d, size, x_train, y_train);
+            d.LoadBatch(size, x, y);
 
             // Preprocessing
-            x_train->div_(255.0);
+            x->div_(255.0);
 
             // Prepare data
-            vtensor tx{ x_train };
-            vtensor ty{ y_train };
+            vtensor tx{ x };
+            vtensor ty{ y };
 
             // Train batch
             train_batch(net, tx, ty, indices);
 
-             // We should provide API for this:
             // Print errors
-            int p = 0;
-            for (int k = 0; k < ty.size(); k++, p += 2) {
-                total_loss[k] += net->fiterr[p];  // loss
-                total_metric[k] += net->fiterr[p + 1];  // metric
-
-                cout << net->lout[k]->name.c_str() << "(" << net->losses[k]->name.c_str() << "=" << total_loss[k] / (batch_size * (j + 1)) << "," <<
-                    net->metrics[k]->name.c_str() << "=" << total_metric[k] / (batch_size * (j + 1)) << ")" << endl;
-
-                  // this exists reset_loss(net); i think... 
-                net->fiterr[p] = net->fiterr[p + 1] = 0.0;
-            }
+            print_loss(net, j);
+            cout << endl;
         }
     }
 
-    save(net, "isic_classification_checkpoint.bin");
-    delete x_train;
-    delete y_train;
+    cout << "Saving weights..." << endl;
+    save(net, "isic_classification_checkpoint.bin", "bin");
 
     // Evaluation
-    // TODO evaluation does not yet allow batched execution
     d.SetSplit("test");
-    tensor x_test;
-    tensor y_test;
-    TestToTensor(d, size, x_test, y_test);
+    num_samples = d.GetSplit().size();
+    num_batches = num_samples / batch_size;
 
-    // Preprocessing
-    x_test->div_(255.0);
     cout << "Evaluate test:" << endl;
-    evaluate(net, { x_test }, { y_test });
+    for (int i = 0; i < num_batches; ++i) {
+        cout << "Batch " << i << "/" << num_batches << ") - ";
+
+        // Load a batch
+        d.LoadBatch(size, x, y);
+
+        // Preprocessing
+        x->div_(255.0);
+
+        // Train batch
+        evaluate(net, { x }, { y });
+    }
+
+    delete x;
+    delete y;
 
     return EXIT_SUCCESS;
 }

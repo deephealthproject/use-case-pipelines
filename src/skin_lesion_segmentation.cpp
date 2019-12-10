@@ -50,17 +50,13 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, "training");
+
+    //Training split is set by default
+    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size);
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y = eddlT::create({ batch_size, 1, size[0], size[1] });
-
-    // Set batch size
-    /// These two lines are not really needed:
-    //resize_model(net, batch_size);
-    // Set training mode
-    //set_mode(net, TRMODE);
 
     // Get number of training samples
     int num_samples = d.GetSplit().size();
@@ -83,14 +79,14 @@ int main()
 
         // Shuffle training list
         shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-        d.current_batch_ = 0;
+        d.ResetAllBatches();
 
         // Feed batches to the model
-        for (int j = 0; j < num_batches; ++j, ++d.current_batch_) {
+        for (int j = 0; j < num_batches; ++j) {
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
-            LoadBatch(d, size, x, y);
+            d.LoadBatch(size, x, y);
 
             // Preprocessing
             x->div_(255.);
@@ -108,29 +104,24 @@ int main()
 
         cout << "Starting validation:" << endl;
         d.SetSplit("validation");
-        d.current_batch_ = 0;
 
         evaluator.ResetEval();
 
         // Validation for each batch
-        for (int j = 0; j < num_batches_validation; ++j, ++d.current_batch_) {
+        for (int j = 0; j < num_batches_validation; ++j) {
             cout << "Validation - Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches_validation << ") ";
 
             // Load a batch
-            LoadBatch(d, size, x, y);
+            d.LoadBatch(size, x, y);
 
             // Preprocessing
             x->div_(255.);
             y->div_(255.);
 
-            // Prepare data
-            vtensor tsx{ x };
-            vtensor tsy{ y };
-
-            forward(net, tsx);
+            forward(net, { x });
             tensor output = getTensor(out_sigm);
 
-            // Compute IoU metric adn optionally save the output images
+            // Compute IoU metric and optionally save the output images
             for (int k = 0; k < batch_size; ++k) {
                 tensor img = eddlT::select(output, k);
                 Image img_t = TensorToView(img);
@@ -159,7 +150,7 @@ int main()
         cout << "----------------------------" << endl;
     }
 
-    save(net, "isic_segmentation_checkpoint.bin");
+    save(net, "isic_segmentation_checkpoint.bin", "bin");
     delete x;
     delete y;
 
