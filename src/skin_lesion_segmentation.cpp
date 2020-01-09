@@ -52,7 +52,7 @@ int main()
     cout << "Reading dataset" << endl;
 
     //Training split is set by default
-    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size);
+    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, size);
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
@@ -69,6 +69,8 @@ int main()
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
+    View<DataType::float32> img_t;
+    View<DataType::float32> gt_t;
 
     Eval evaluator;
     cout << "Starting training" << endl;
@@ -86,7 +88,7 @@ int main()
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
-            d.LoadBatch(size, x, y);
+            d.LoadBatch(x, y);
 
             // Preprocessing
             x->div_(255.);
@@ -112,7 +114,7 @@ int main()
             cout << "Validation - Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches_validation << ") ";
 
             // Load a batch
-            d.LoadBatch(size, x, y);
+            d.LoadBatch(x, y);
 
             // Preprocessing
             x->div_(255.);
@@ -124,21 +126,21 @@ int main()
             // Compute IoU metric and optionally save the output images
             for (int k = 0; k < batch_size; ++k) {
                 tensor img = eddlT::select(output, k);
-                Image img_t = TensorToView(img);
+                TensorToView(img, img_t);
 
                 tensor gt = eddlT::select(y, k);
-                Image gt_t = TensorToView(gt);
+                TensorToView(gt, gt_t);
 
                 cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
                 if (save_images) {
                     ImageSqueeze(img_t);
-                    Mul(img_t, 255, img_t);
+                    img->mult_(255.);
                     ImWrite("output_images/batch_" + to_string(j) + "_output.png", img_t);
 
                     if (i == 0) {
                         ImageSqueeze(gt_t);
-                        Mul(gt_t, 255, gt_t);
+                        gt->mult_(255.);
                         ImWrite("output_images/batch_" + to_string(j) + "_gt.png", gt_t);
                     }
                 }

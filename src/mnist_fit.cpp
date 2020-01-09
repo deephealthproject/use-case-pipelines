@@ -19,7 +19,7 @@ int main()
     ColorType ctype = ColorType::GRAY;
 
     // Define network
-    layer in = Input({ 1, 28, 28 });
+    layer in = Input({ 1, size[0], size[1] });
     layer out = LeNet(in, num_classes); // Model LeNet
     model net = Model({ in }, { out });
 

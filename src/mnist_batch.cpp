@@ -43,7 +43,7 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("mnist/mnist.yml", batch_size, ctype);
+    DLDataset d("mnist/mnist.yml", batch_size, size, ctype);
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
@@ -69,7 +69,7 @@ int main()
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
-            d.LoadBatch(size, x, y);
+            d.LoadBatch(x, y);
 
             // Preprocessing
             x->div_(255.0);
@@ -96,7 +96,7 @@ int main()
         cout << "Batch " << i << "/" << num_batches << ") - ";
 
         // Load a batch
-        d.LoadBatch(size, x, y);
+        d.LoadBatch(x, y);
 
         // Preprocessing
         x->div_(255.0);
