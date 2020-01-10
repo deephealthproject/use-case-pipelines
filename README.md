@@ -1,6 +1,6 @@
 # DH USE CASE Pipeline 
 
-Pipeline that uses EDDL and ECVL to train a CNN on two different datasets (_MNIST_ and _ISIC_) for the classification task.
+Pipeline that uses EDDL and ECVL to train a CNN on two different datasets (_MNIST_ and _ISIC_) for both the classification and the segmentation task.
 
 
 ## Requirements
