@@ -22,7 +22,7 @@ make -j$(nproc) && make install
 
 ############ ECVL
 cd $CUR_PATH/deephealth
-git clone --branch development git@github.com:deephealthproject/ecvl.git
+git clone git@github.com:deephealthproject/ecvl.git
 cd ecvl
 git checkout a3d8a31075ff529623df9c7b78f06c924b03ac4c  # Development branch
 mkdir -p bin && cd bin
