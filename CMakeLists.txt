@@ -106,31 +106,27 @@ if(ecvl_FOUND)
     message(STATUS "ECVL found")
 endif()
 
-# Download and unpack MNIST dataset if necessary
+# Download and unpack MNIST dataset
 if(DOWNLOAD_MNIST)
-    if (EXISTS "${CMAKE_BINARY_DIR}/mnist.zip")
-        message(STATUS "${CMAKE_BINARY_DIR}/mnist.zip already exists, download skipped!")
+    if (IS_DIRECTORY "${CMAKE_BINARY_DIR}/mnist")
+        message(STATUS "${CMAKE_BINARY_DIR}/mnist dataset folder already exists, download skipped!")
     else()
         message(STATUS "Downloading MNIST...")
-        file(DOWNLOAD http://imagelab.ing.unimore.it/files/DeepHealth/mnist.zip "${CMAKE_BINARY_DIR}/mnist.zip"
-            TIMEOUT 60
+        file(DOWNLOAD https://www.dropbox.com/s/8rslhjpects95k0/mnist.zip "${CMAKE_BINARY_DIR}/mnist.zip"
             STATUS status
             SHOW_PROGRESS
         )
-        list( GET status 0 error_code )
-        if( error_code )
-            message(ERROR " Cmake is not able to download the mnist dataset. \nPlease, retry or download it manually (The dataset is also available at https://drive.google.com/file/d/1uWUkP3vMx1MWwOnZud7JhxcfmI2PZvv3/view?usp=sharing).")
-            if(EXISTS "${CMAKE_BINARY_DIR}/mnist.zip")
-                file(REMOVE "${CMAKE_BINARY_DIR}/mnist.zip")
-            endif()
+        list(GET status 0 error_code)
+        if(error_code)
+            message(WARNING "CMake is not able to download the mnist dataset.\n
+            Please, retry or download it manually (The dataset is also available at http://imagelab.ing.unimore.it/files/DeepHealth/mnist.zip).")
         else()
             message(STATUS "Downloading done.")
-        endif()
-
-        if(EXISTS "${CMAKE_BINARY_DIR}/mnist.zip")
-            message(STATUS "Unpacking (it may take a while)...")
-            execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf "${CMAKE_BINARY_DIR}/mnist.zip" WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" OUTPUT_QUIET)
-            message(STATUS "Unpacking done.")
+            if(EXISTS "${CMAKE_BINARY_DIR}/mnist.zip")
+                message(STATUS "Unpacking (it may take a while)...")
+                execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf "${CMAKE_BINARY_DIR}/mnist.zip" WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" OUTPUT_QUIET)
+                message(STATUS "Unpacking done.")
+            endif()
         endif()
     endif()
 endif()

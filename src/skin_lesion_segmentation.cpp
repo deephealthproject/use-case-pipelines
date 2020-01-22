@@ -1,11 +1,11 @@
-#include "models/models.h"
 #include "metrics/metrics.h"
+#include "models/models.h"
 #include "utils/utils.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <random>
-#include <filesystem>
 
 using namespace ecvl;
 using namespace eddl;
@@ -52,7 +52,7 @@ int main()
     cout << "Reading dataset" << endl;
 
     //Training split is set by default
-    DLDataset d("D:/dataset/isic_2017/isic_segmentation.yml", batch_size, size);
+    DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, size);
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
