@@ -4,6 +4,7 @@
 #include "models/models.h"
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <random>
 
@@ -55,14 +56,27 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, size);
+    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
+    tensor output;
+    tensor target;
+    tensor result;
 
     int num_samples = d.GetSplit().size();
     int num_batches = num_samples / batch_size;
+
+    d.SetSplit(SplitType::validation);
+    int num_samples_validation = d.GetSplit().size();
+    int num_batches_validation = num_samples_validation / batch_size;
+    float sum = 0., ca = 0.;
+
+    vector<float> total_metric;
+    Metric *m = getMetric("categorical_accuracy");
+    float total_avg;
+    ofstream of;
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
@@ -70,18 +84,20 @@ int main()
 
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
+        d.SetSplit(SplitType::training);
         // Reset errors
         reset_loss(net);
+        total_metric.clear();
 
         // Shuffle training list
         shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-        d.ResetCurrentBatch();
+        d.ResetAllBatches();
 
         // Feed batches to the model
         for (int j = 0; j < num_batches; ++j) {
             tm.reset();
             tm.start();
-            cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
+            cout << "Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches << ") - ";
 
             // Load a batch
             d.LoadBatch(x, y);
@@ -102,32 +118,54 @@ int main()
 
             cout << "- Elapsed time: " << tm.getTimeSec() << endl;
         }
-    }
 
-    cout << "Saving weights..." << endl;
-    save(net, "isic_classification_checkpoint.bin", "bin");
+        cout << "Saving weights..." << endl;
+        save(net, "isic_classification_checkpoint_epoch_" + to_string(i) + ".bin", "bin");
 
-    // Evaluation
-    d.SetSplit(SplitType::test);
-    num_samples = d.GetSplit().size();
-    num_batches = num_samples / batch_size;
+        // Evaluation
+        d.SetSplit(SplitType::test);
 
-    cout << "Evaluate test:" << endl;
-    for (int i = 0; i < num_batches; ++i) {
-        cout << "Batch " << i << "/" << num_batches << ") - ";
+        cout << "Evaluate:" << endl;
+        for (int j = 0; j < num_batches_validation; ++j) {
+            cout << "Validation: Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") - ";
 
-        // Load a batch
-        d.LoadBatch(x, y);
+            // Load a batch
+            d.LoadBatch(x, y);
 
-        // Preprocessing
-        x->div_(255.0);
+            // Preprocessing
+            x->div_(255.0);
 
-        // Train batch
-        evaluate(net, { x }, { y });
+            // Evaluate batch
+            forward(net, { x });
+            output = getTensor(out);
+
+            sum = 0.;
+            for (int k = 0; k < batch_size; ++k) {
+                result = eddlT::select(output, k);
+                target = eddlT::select(y, k);
+
+                ca = m->value(target, result);
+
+                total_metric.push_back(ca);
+                sum += ca;
+
+                delete result;
+                delete target;
+            }
+            cout << " categorical_accuracy: " << sum / batch_size << endl;
+        }
+
+        total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0) / total_metric.size();
+        cout << "Total categorical accuracy: " << total_avg << endl;
+
+        of.open("output_evaluate_classification.txt", ios::out | ios::app);
+        of << "Epoch " << i << " - Total categorical accuracy: " << total_avg << endl;
+        of.close();
     }
 
     delete x;
     delete y;
+    delete output;
 
     return EXIT_SUCCESS;
 }

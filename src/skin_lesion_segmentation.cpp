@@ -4,12 +4,14 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <random>
 
 using namespace ecvl;
 using namespace eddl;
 using namespace std;
+using namespace std::filesystem;
 
 int main()
 {
@@ -22,9 +24,11 @@ int main()
     std::mt19937 g(std::random_device{}());
 
     bool save_images = true;
+    path output_path;
 
     if (save_images) {
-        filesystem::create_directory("output_images");
+        output_path = "../output_images";
+        create_directory(output_path);
     }
 
     // Define network
@@ -86,6 +90,7 @@ int main()
 
     View<DataType::float32> img_t;
     View<DataType::float32> gt_t;
+    ofstream of;
 
     Eval evaluator;
     cout << "Starting training" << endl;
@@ -100,7 +105,7 @@ int main()
 
         // Feed batches to the model
         for (int j = 0; j < num_batches; ++j) {
-            cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
+            cout << "Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches << ") - ";
             tm.reset();
             tm.start();
             // Load a batch
@@ -122,6 +127,9 @@ int main()
             cout << "- Elapsed time: " << tm.getTimeSec() << endl;
         }
 
+        cout << "Saving weights..." << endl;
+        save(net, "isic_segmentation_checkpoint_epoch_" + to_string(i) + ".bin", "bin");
+
         cout << "Starting validation:" << endl;
         d.SetSplit(SplitType::validation);
 
@@ -129,7 +137,7 @@ int main()
 
         // Validation for each batch
         for (int j = 0; j < num_batches_validation; ++j) {
-            cout << "Validation - Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches_validation << ") ";
+            cout << "Validation - Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") ";
 
             // Load a batch
             d.LoadBatch(x, y);
@@ -154,12 +162,12 @@ int main()
                 if (save_images) {
                     ImageSqueeze(img_t);
                     img->mult_(255.);
-                    ImWrite("output_images/batch_" + to_string(j) + "_output.png", img_t);
+                    ImWrite(output_path / path("batch_" + to_string(j) + "_output_" + to_string(k) + ".png"), img_t);
 
                     if (i == 0) {
                         ImageSqueeze(gt_t);
                         gt->mult_(255.);
-                        ImWrite("output_images/batch_" + to_string(j) + "_gt.png", gt_t);
+                        ImWrite(output_path / path("batch_" + to_string(j) + "_gt_" + to_string(k) + ".png"), gt_t);
                     }
                 }
             }
@@ -168,9 +176,12 @@ int main()
         cout << "----------------------------" << endl;
         cout << "MIoU: " << evaluator.MIoU() << endl;
         cout << "----------------------------" << endl;
+
+        of.open("output_evaluate_isic_segmentation.txt", ios::out | ios::app);
+        of << "Epoch " << i << " - MIoU: " << evaluator.MIoU() << endl;
+        of.close();
     }
 
-    save(net, "isic_segmentation_checkpoint.bin", "bin");
     delete x;
     delete y;
 
