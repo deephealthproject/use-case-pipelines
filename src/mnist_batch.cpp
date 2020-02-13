@@ -91,6 +91,9 @@ int main()
 
     // Evaluation
     d.SetSplit("test");
+    num_samples = d.GetSplit().size();
+    num_batches = num_samples / batch_size;
+
     cout << "Evaluate test:" << endl;
     for (int i = 0; i < num_batches; ++i) {
         cout << "Batch " << i << "/" << num_batches << ") - ";

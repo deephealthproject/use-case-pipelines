@@ -3,7 +3,7 @@ mkdir deephealth
 cd deephealth
 
 :: EDDL
-git clone git@github.com:deephealthproject/eddl.git --recursive
+git clone https://github.com/deephealthproject/eddl.git --recursive
 cd eddl
 git checkout 6fdef431af870caba07cf3276c78e08828341f48
 mkdir build
@@ -14,7 +14,7 @@ cmake --build . --config Release --target INSTALL
 
 :: OPENCV
 cd %CUR_PATH%/deephealth/
-git clone git@github.com:opencv/opencv.git
+git clone https://github.com/opencv/opencv.git
 cd opencv
 git checkout tags/4.1.1
 mkdir build
@@ -25,7 +25,7 @@ cmake --build . --config Release --target INSTALL
 
 :: ECVL
 cd %CUR_PATH%/deephealth
-git clone git@github.com:deephealthproject/ecvl.git
+git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
 git checkout 983119668e8c0a2f45c29b4d586c475dc901aba3 
 mkdir build
