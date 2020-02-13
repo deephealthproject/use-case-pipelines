@@ -54,16 +54,16 @@ int main()
     auto training_augs = make_unique<SequentialAugmentationContainer>(
         AugMirror(.5),
         AugFlip(.5),
-        AugRotate({-180, 180}),
-        AugAdditivePoissonNoise({0, 10}),
-        AugGammaContrast({.5, 1.5}),
-        AugGaussianBlur({.0, .8}),
-        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0.5),
+        AugRotate({ -180, 180 }),
+        AugAdditivePoissonNoise({ 0, 10 }),
+        AugGammaContrast({ .5, 1.5 }),
+        AugGaussianBlur({ .0, .8 }),
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5),
         AugResizeDim(size));
 
-    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
+    auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
 
-    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, move(test_augs)}};
+    DatasetAugmentations dataset_augmentations{ {move(training_augs), move(validation_augs), nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
@@ -153,19 +153,19 @@ int main()
             for (int k = 0; k < batch_size; ++k) {
                 tensor img = eddlT::select(output, k);
                 TensorToView(img, img_t);
+                img_t.colortype_ = ColorType::GRAY;
 
                 tensor gt = eddlT::select(y, k);
                 TensorToView(gt, gt_t);
+                gt_t.colortype_ = ColorType::GRAY;
 
                 cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
                 if (save_images) {
-                    ImageSqueeze(img_t);
                     img->mult_(255.);
                     ImWrite(output_path / path("batch_" + to_string(j) + "_output_" + to_string(k) + ".png"), img_t);
 
                     if (i == 0) {
-                        ImageSqueeze(gt_t);
                         gt->mult_(255.);
                         ImWrite(output_path / path("batch_" + to_string(j) + "_gt_" + to_string(k) + ".png"), gt_t);
                     }

@@ -43,16 +43,16 @@ int main()
     auto training_augs = make_unique<SequentialAugmentationContainer>(
         AugMirror(.5),
         AugFlip(.5),
-        AugRotate({-180, 180}),
-        AugAdditivePoissonNoise({0, 10}),
-        AugGammaContrast({.5,1.5}),
-        AugGaussianBlur({.0,.8}),
-        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0.5),
+        AugRotate({ -180, 180 }),
+        AugAdditivePoissonNoise({ 0, 10 }),
+        AugGammaContrast({ .5,1.5 }),
+        AugGaussianBlur({ .0,.8 }),
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5),
         AugResizeDim(size));
 
-    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
+    auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
 
-    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, move(test_augs)}};
+    DatasetAugmentations dataset_augmentations{ {move(training_augs), move(validation_augs), nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
