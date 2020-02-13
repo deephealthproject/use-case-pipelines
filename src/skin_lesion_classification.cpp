@@ -41,14 +41,14 @@ int main()
     plot(net, "model.pdf");
 
     auto training_augs = make_unique<SequentialAugmentationContainer>(
+        AugResizeDim(size),
         AugMirror(.5),
         AugFlip(.5),
         AugRotate({ -180, 180 }),
         AugAdditivePoissonNoise({ 0, 10 }),
         AugGammaContrast({ .5,1.5 }),
         AugGaussianBlur({ .0,.8 }),
-        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5),
-        AugResizeDim(size));
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
 
     auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
 
