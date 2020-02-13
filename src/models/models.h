@@ -1,7 +1,7 @@
 #ifndef MODELS_H_
 #define MODELS_H_
 
-#include "ecvl/eddl.h"
+#include "ecvl/support_eddl.h"
 
 // Model LeNet (same as https://github.com/pytorch/examples/blob/master/mnist/main.py)
 layer LeNet(layer x, const int& num_classes);

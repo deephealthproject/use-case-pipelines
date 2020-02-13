@@ -1,2 +1,4 @@
-bin*
+/[Bb]uild*
+/[Bb]in*
 deephealth/*
+/.vs*

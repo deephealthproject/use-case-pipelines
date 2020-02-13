@@ -19,8 +19,7 @@ int main()
     int num_classes = 1;
     std::vector<int> size{ 192, 192 }; // Size of images
 
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g(std::random_device{}());
 
     bool save_images = true;
 
@@ -48,6 +47,19 @@ int main()
     summary(net);
     plot(net, "model.pdf");
 
+    auto training_augs = make_unique<SequentialAugmentationContainer>(
+        AugMirror(.5),
+        AugFlip(.5),
+        AugRotate({-180, 180}),
+        AugAdditivePoissonNoise({0, 10}),
+        AugGammaContrast({.5, 1.5}),
+        AugGaussianBlur({.0, .8}),
+        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0.5),
+        AugResizeDim(size));
+
+    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
+
+    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, move(test_augs)}};
     // Read the dataset
     cout << "Reading dataset" << endl;
 
@@ -63,19 +75,22 @@ int main()
     int num_batches = num_samples / batch_size;
 
     // Get number of validation samples
-    d.SetSplit("validation");
+    d.SetSplit(SplitType::validation);
+
     int num_samples_validation = d.GetSplit().size();
     int num_batches_validation = num_samples_validation / batch_size;
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
+    cv::TickMeter tm;
+
     View<DataType::float32> img_t;
     View<DataType::float32> gt_t;
 
     Eval evaluator;
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
-        d.SetSplit("training");
+        d.SetSplit(SplitType::training);
         // Reset errors
         reset_loss(net);
 
@@ -86,7 +101,8 @@ int main()
         // Feed batches to the model
         for (int j = 0; j < num_batches; ++j) {
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
-
+            tm.reset();
+            tm.start();
             // Load a batch
             d.LoadBatch(x, y);
 
@@ -101,11 +117,13 @@ int main()
             // Train batch
             train_batch(net, tx, ty, indices);
             print_loss(net, j);
-            cout << endl;
+            tm.stop();
+
+            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
         }
 
         cout << "Starting validation:" << endl;
-        d.SetSplit("validation");
+        d.SetSplit(SplitType::validation);
 
         evaluator.ResetEval();
 

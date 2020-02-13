@@ -1,6 +1,3 @@
-target_sources(MNIST_FIT PRIVATE
-        mnist_fit.cpp
-)
 target_sources(MNIST_BATCH PRIVATE
         mnist_batch.cpp
 )

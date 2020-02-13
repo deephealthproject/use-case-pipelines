@@ -1,5 +1,5 @@
 #include "ecvl/core.h"
-#include "ecvl/eddl.h"
+#include "ecvl/support_eddl.h"
 #include "ecvl/dataset_parser.h"
 #include "models/models.h"
 
@@ -19,8 +19,7 @@ int main()
     int num_classes = 8;
     std::vector<int> size{ 224,224 }; // Size of images
 
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g(std::random_device{}());
 
     // Define network
     layer in = Input({ 3, size[0],  size[1] });
@@ -40,6 +39,20 @@ int main()
     summary(net);
     plot(net, "model.pdf");
 
+    auto training_augs = make_unique<SequentialAugmentationContainer>(
+        AugMirror(.5),
+        AugFlip(.5),
+        AugRotate({-180, 180}),
+        AugAdditivePoissonNoise({0, 10}),
+        AugGammaContrast({.5,1.5}),
+        AugGaussianBlur({.0,.8}),
+        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0.5),
+        AugResizeDim(size));
+
+    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
+
+    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, move(test_augs)}};
+
     // Read the dataset
     cout << "Reading dataset" << endl;
     DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, size);
@@ -53,6 +66,7 @@ int main()
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
+    cv::TickMeter tm;
 
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
@@ -65,6 +79,8 @@ int main()
 
         // Feed batches to the model
         for (int j = 0; j < num_batches; ++j) {
+            tm.reset();
+            tm.start();
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
@@ -82,7 +98,9 @@ int main()
 
             // Print errors
             print_loss(net, j);
-            cout << endl;
+            tm.stop();
+
+            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
         }
     }
 
@@ -90,7 +108,7 @@ int main()
     save(net, "isic_classification_checkpoint.bin", "bin");
 
     // Evaluation
-    d.SetSplit("test");
+    d.SetSplit(SplitType::test);
     num_samples = d.GetSplit().size();
     num_batches = num_samples / batch_size;
 

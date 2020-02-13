@@ -1,5 +1,5 @@
 #include "ecvl/core.h"
-#include "ecvl/eddl.h"
+#include "ecvl/support_eddl.h"
 #include "ecvl/dataset_parser.h"
 #include "models/models.h"
 
@@ -20,8 +20,7 @@ int main()
     std::vector<int> size{ 28,28 }; // Size of images
 
     ColorType ctype = ColorType::GRAY;
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g(std::random_device{}());
 
     // Define network
     layer in = Input({ 1, size[0],  size[1] });
@@ -41,9 +40,17 @@ int main()
     summary(net);
     plot(net, "model.pdf");
 
+    auto training_augs = make_unique<SequentialAugmentationContainer>(
+        AugRotate({-5, 5}),
+        AugAdditivePoissonNoise({0, 10}),
+        AugGaussianBlur({.0, .8}),
+        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0));
+
+    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, nullptr}};
+
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("mnist/mnist.yml", batch_size, size, ctype);
+    DLDataset d("mnist/mnist.yml", batch_size, move(dataset_augmentations), ctype);
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
@@ -54,6 +61,7 @@ int main()
 
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
+    cv::TickMeter tm;
 
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
@@ -66,6 +74,8 @@ int main()
 
         // Feed batches to the model
         for (int j = 0; j < num_batches; ++j) {
+            tm.reset();
+            tm.start();
             cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
 
             // Load a batch
@@ -83,14 +93,16 @@ int main()
 
             // Print errors
             print_loss(net, j);
-            cout << endl;
+            tm.stop();
+
+            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
         }
     }
-
+    cout << "Saving weights..." << endl;
     save(net, "mnist_checkpoint.bin", "bin");
 
     // Evaluation
-    d.SetSplit("test");
+    d.SetSplit(SplitType::test);
     cout << "Evaluate test:" << endl;
     for (int i = 0; i < num_batches; ++i) {
         cout << "Batch " << i << "/" << num_batches << ") - ";

@@ -2,7 +2,7 @@
 #define UTILS_H_
 
 #include "ecvl/core.h"
-#include "ecvl/eddl.h"
+#include "ecvl/support_eddl.h"
 
 template <ecvl::DataType DT> // src type
 struct NormalizeToUint8Struct
