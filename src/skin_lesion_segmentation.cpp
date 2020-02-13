@@ -64,11 +64,11 @@ int main()
     auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
 
     DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, move(test_augs)}};
+
     // Read the dataset
     cout << "Reading dataset" << endl;
-
     //Training split is set by default
-    DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, size);
+    DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, move(dataset_augmentations));
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
