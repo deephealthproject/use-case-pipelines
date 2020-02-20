@@ -1,6 +1,3 @@
-#include "ecvl/core.h"
-#include "ecvl/support_eddl.h"
-#include "ecvl/dataset_parser.h"
 #include "models/models.h"
 
 #include <algorithm>
@@ -39,14 +36,15 @@ int main()
     // View model
     summary(net);
     plot(net, "model.pdf");
+    setlogfile(net, "mnist");
 
     auto training_augs = make_unique<SequentialAugmentationContainer>(
-        AugRotate({-5, 5}),
-        AugAdditivePoissonNoise({0, 10}),
-        AugGaussianBlur({.0, .8}),
-        AugCoarseDropout({0, 0.3}, {0.02, 0.05}, 0));
+        AugRotate({ -5, 5 }),
+        AugAdditivePoissonNoise({ 0, 10 }),
+        AugGaussianBlur({ .0, .8 }),
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0));
 
-    DatasetAugmentations dataset_augmentations{{move(training_augs), nullptr, nullptr}};
+    DatasetAugmentations dataset_augmentations{ {move(training_augs), nullptr, nullptr} };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
@@ -76,7 +74,7 @@ int main()
         for (int j = 0; j < num_batches; ++j) {
             tm.reset();
             tm.start();
-            cout << "Epoch " << i + 1 << "/" << epochs << " (batch " << j + 1 << "/" << num_batches << ") - ";
+            cout << "Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches << ") - ";
 
             // Load a batch
             d.LoadBatch(x, y);
@@ -105,7 +103,7 @@ int main()
     d.SetSplit(SplitType::test);
     num_samples = d.GetSplit().size();
     num_batches = num_samples / batch_size;
-    
+
     cout << "Evaluate test:" << endl;
     for (int i = 0; i < num_batches; ++i) {
         cout << "Batch " << i << "/" << num_batches << ") - ";
