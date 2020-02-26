@@ -73,7 +73,7 @@ int main()
     vector<vector<Point2i>> contours;
 
     Eval evaluator;
-    load(net, "isic_segmentation_checkpoint_epoch_24.bin", "bin");
+    load(net, "isic_segm_segnet_adam_lr_0.0001_loss_ce_size_192_epoch_24.bin");
 
     cout << "Starting test:" << endl;
     evaluator.ResetEval();

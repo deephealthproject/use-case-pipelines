@@ -23,11 +23,6 @@ int main()
     bool save_images = true;
     path output_path;
 
-    if (save_images) {
-        output_path = "../output_images_classification_inference";
-        create_directory(output_path);
-    }
-
     // Define network
     layer in = Input({ 3, size[0],  size[1] });
     layer out = VGG16(in, num_classes);
@@ -55,6 +50,14 @@ int main()
     cout << "Reading dataset" << endl;
     DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
 
+    if (save_images) {
+        output_path = "../output_images_classification_inference";
+        create_directory(output_path);
+        for (int c = 0; c < d.classes_.size(); ++c) {
+            create_directories(output_path / path(d.classes_[c]));
+        }
+    }
+
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
@@ -70,13 +73,7 @@ int main()
     vector<float> total_metric;
     Metric* m = getMetric("categorical_accuracy");
 
-    load(net, "isic_classification_checkpoint_epoch_48.bin", "bin");
-
-    if (save_images) {
-        for (int c = 0; c < d.classes_.size(); ++c) {
-            create_directories(output_path / path(d.classes_[c]));
-        }
-    }
+    load(net, "isic_class_VGG16_sgd_lr_0.001_momentum_0.9_loss_sce_size_224_epoch_48.bin");
 
     cout << "Starting test:" << endl;
     for (int i = 0, n = 0; i < num_batches_test; ++i) {
@@ -132,7 +129,7 @@ int main()
             delete target;
             delete single_image;
         }
-        cout << " categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
+        cout << "categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
     }
 
     float total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0) / total_metric.size();
