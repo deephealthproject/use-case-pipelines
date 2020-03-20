@@ -18,8 +18,6 @@ int main()
     int num_classes = 8;
     std::vector<int> size{ 224, 224 }; // Size of images
 
-    std::mt19937 g(std::random_device{}());
-
     bool save_images = true;
     path output_path;
 

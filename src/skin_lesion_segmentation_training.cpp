@@ -72,7 +72,7 @@ int main()
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, 1, size[0], size[1] });
+    tensor y = eddlT::create({ batch_size, d.n_channels_gt_, size[0], size[1] });
 
     // Get number of training samples
     int num_samples = d.GetSplit().size();
@@ -201,11 +201,11 @@ int main()
             cout << endl;
         }
         cout << "----------------------------" << endl;
-        cout << "MIoU: " << evaluator.MIoU() << endl;
+        cout << "MIoU: " << evaluator.MeanMetric() << endl;
         cout << "----------------------------" << endl;
 
         of.open("output_evaluate_isic_segmentation.txt", ios::out | ios::app);
-        of << "Epoch " << i << " - MIoU: " << evaluator.MIoU() << endl;
+        of << "Epoch " << i << " - MIoU: " << evaluator.MeanMetric() << endl;
         of.close();
     }
 

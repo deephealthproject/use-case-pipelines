@@ -1,34 +1,3 @@
-# This file is part of ECVL an European Computer Vision Library.
-# Developed within the DeepHealth project.
-# Boosting AI in Europe.
-#
-# The MIT License (MIT)
-#
-# Copyright (c) 2019
-#           Laura Canalini, <laura.canalini@unimore.it>
-#           Michele Cancilla, <michele.cancilla@unimore.it>
-#           Federico Bolelli, <federico.bolelli@unimore.it>
-#           Costantino Grana, <costantino.grana@unimore.it>
-#           Stefano Allegretti, <stefano.allegretti@unimore.it>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 cmake_minimum_required (VERSION 3.13)
 
 project (pipeline_ecvl_eddl CXX)
@@ -78,16 +47,17 @@ endif()
 
 add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
-add_library(UTILS STATIC "")
 add_executable(MNIST_BATCH)
 add_executable(SKIN_LESION_CLASSIFICATION_TRAINING)
 add_executable(SKIN_LESION_SEGMENTATION_TRAINING)
 add_executable(SKIN_LESION_CLASSIFICATION_INFERENCE)
 add_executable(SKIN_LESION_SEGMENTATION_INFERENCE)
+add_executable(PNEUMOTHORAX_SEGMENTATION_TRAINING)
+add_executable(PNEUMOTHORAX_SEGMENTATION_INFERENCE)
+add_executable(COPY_GROUND_TRUTH_PNEUMOTHORAX)
 add_subdirectory(src)
 add_subdirectory("src/metrics")
 add_subdirectory("src/models")
-add_subdirectory("src/utils")
 
 # Set SKIN_LESION_CLASSIFICATION_TRAINING as default
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION_TRAINING)
@@ -96,14 +66,20 @@ set(ECVL_BUILD ON CACHE BOOL "Whether to build ECVL or not (requires ECVL)")
 
 find_package(ecvl)
 if(ecvl_FOUND)
-    target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET_PARSER)
-    target_link_libraries(UTILS METRICS)
-    target_link_libraries(MODELS UTILS)
+    target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET)
+    target_link_libraries(MODELS METRICS)
     target_link_libraries(MNIST_BATCH MODELS)
     target_link_libraries(SKIN_LESION_CLASSIFICATION_TRAINING MODELS)
     target_link_libraries(SKIN_LESION_SEGMENTATION_TRAINING MODELS)
     target_link_libraries(SKIN_LESION_CLASSIFICATION_INFERENCE MODELS)
     target_link_libraries(SKIN_LESION_SEGMENTATION_INFERENCE MODELS)
+    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_TRAINING MODELS)
+    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_INFERENCE MODELS)
+    target_link_libraries(COPY_GROUND_TRUTH_PNEUMOTHORAX stdc++fs)
+    set_target_properties(METRICS PROPERTIES FOLDER "Utils")
+    set_target_properties(MODELS PROPERTIES FOLDER "Utils")
+    set_target_properties(COPY_GROUND_TRUTH_PNEUMOTHORAX PROPERTIES FOLDER "Utils")
+
     include_directories("${ecvl_DIR}/include")
     message(STATUS "ECVL found")
 endif()

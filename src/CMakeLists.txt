@@ -13,3 +13,12 @@ target_sources(SKIN_LESION_CLASSIFICATION_INFERENCE PRIVATE
 target_sources(SKIN_LESION_SEGMENTATION_INFERENCE PRIVATE
         skin_lesion_segmentation_inference.cpp
 )
+target_sources(PNEUMOTHORAX_SEGMENTATION_TRAINING PRIVATE
+        pneumothorax_segmentation_training.cpp
+)
+target_sources(PNEUMOTHORAX_SEGMENTATION_INFERENCE PRIVATE
+        pneumothorax_segmentation_inference.cpp
+)
+target_sources(COPY_GROUND_TRUTH_PNEUMOTHORAX PRIVATE
+        copy_ground_truth_pneumothorax.cpp
+)

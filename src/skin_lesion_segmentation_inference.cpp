@@ -19,8 +19,6 @@ int main()
     int num_classes = 1;
     std::vector<int> size{ 192, 192 }; // Size of images
 
-    std::mt19937 g(std::random_device{}());
-
     bool save_images = true;
     path output_path;
 
@@ -59,7 +57,7 @@ int main()
 
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, 1, size[0], size[1] });
+    tensor y = eddlT::create({ batch_size, d.n_channels_gt_, size[0], size[1] });
     tensor output;
 
     // Get number of test samples
@@ -138,15 +136,16 @@ int main()
         cout << endl;
     }
     cout << "----------------------------" << endl;
-    cout << "MIoU: " << evaluator.MIoU() << endl;
+    cout << "MIoU: " << evaluator.MeanMetric() << endl;
     cout << "----------------------------" << endl;
 
     ofstream of("output_segmentation_inference.txt");
-    of << "MIoU: " << evaluator.MIoU() << endl;
+    of << "MIoU: " << evaluator.MeanMetric() << endl;
     of.close();
 
     delete x;
     delete y;
+    delete output;
 
     return EXIT_SUCCESS;
 }
