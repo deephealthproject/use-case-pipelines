@@ -62,7 +62,7 @@ int main()
     int num_batches_test = num_samples_test / batch_size;
 
     View<DataType::float32> img_t;
-    load(net, "pneumothorax_segnetBN_adam_lr_0.0001_loss_ce_size_512_epoch_47.bin");
+    load(net, "pneumothorax_segnetBN_adam_lr_0.0001_loss_ce_size_512_epoch_44.bin");
     cout << "Starting test:" << endl;
 
     // Test for each batch

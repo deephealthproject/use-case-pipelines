@@ -31,7 +31,7 @@ From the 2669 distinct training images with mask, 200 are randomly sampled as va
 - Training set: 3086 total images - 80% with mask and 20% without mask.
 - Validation set: 250 total images - 80% with mask and 20% without mask.
 
-To perform only inference on test set, change the dataset path into the `pneumothorax_segmentation_inference.cpp` source file and download checkpoint [here](https://drive.google.com/uc?id=1lNezRAM3cydnPLXDyBi4o4iWq7K8sALw&export=download) (best Dice Coefficient on validation in 50 epochs).
+To perform only inference on test set, change the dataset path into the `pneumothorax_segmentation_inference.cpp` source file and download checkpoint [here](https://drive.google.com/uc?id=1kLhNpzBi5OYm9y4YNlK_XuUf52WItUVT&export=download) (best Dice Coefficient on validation in 50 epochs).
 
 
 ### CUDA
