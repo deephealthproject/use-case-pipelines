@@ -1,8 +1,9 @@
 #!/bin/bash
 
 UCP_PATH=`pwd`
-DEVICE="CPU"
+DEVICE="GPU"
 BUILD_TYPE="Release"
+# BUILD_TYPE="Debug"
 
 mkdir -p deephealth && cd deephealth
 
