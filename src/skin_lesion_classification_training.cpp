@@ -28,7 +28,7 @@ int main()
 
     // Build model
     build(net,
-        sgd(0.001, 0.9), // Optimizer
+        sgd(0.001f, 0.9f), // Optimizer
         { "soft_cross_entropy" }, // Losses
         { "categorical_accuracy" } // Metrics
     );
@@ -66,11 +66,11 @@ int main()
     tensor result;
     tensor single_image;
 
-    int num_samples = d.GetSplit().size();
+    int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
 
     d.SetSplit(SplitType::validation);
-    int num_samples_validation = d.GetSplit().size();
+    int num_samples_validation = vsize(d.GetSplit());
     int num_batches_validation = num_samples_validation / batch_size;
     float sum = 0., ca = 0.;
 
@@ -94,7 +94,6 @@ int main()
 
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
-        
         auto current_path{ output_path / path("Epoch_" + to_string(i)) };
         if (save_images) {
             for (int c = 0; c < d.classes_.size(); ++c) {
@@ -200,7 +199,7 @@ int main()
             cout << " categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
         }
 
-        total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0) / total_metric.size();
+        total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
         cout << "Total categorical accuracy: " << total_avg << endl;
 
         of.open("output_evaluate_classification.txt", ios::out | ios::app);

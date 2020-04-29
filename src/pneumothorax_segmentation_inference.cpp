@@ -30,7 +30,7 @@ int main()
 
     // Build model
     build(net,
-        adam(0.0001), //Optimizer
+        adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
         { "mean_squared_error" } // Metrics
     );
@@ -58,7 +58,7 @@ int main()
 
     // Get number of test samples.
     d.SetSplit(SplitType::test);
-    int num_samples_test = d.GetSplit().size();
+    int num_samples_test = vsize(d.GetSplit());
     int num_batches_test = num_samples_test / batch_size;
 
     View<DataType::float32> img_t;
@@ -88,7 +88,7 @@ int main()
             auto i_img = img_t.ContiguousBegin<float>(), e_img = img_t.ContiguousEnd<float>();
 
             for (; i_img != e_img; ++i_img) {
-                *i_img = ((*i_img) < 0.50) ? 0 : 1;
+                *i_img = ((*i_img) < 0.50) ? 0.f : 1.f;
             }
 
             path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();

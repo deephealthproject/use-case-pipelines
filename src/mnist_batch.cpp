@@ -26,7 +26,7 @@ int main()
 
     // Build model
     build(net,
-        sgd(0.001, 0.9), // Optimizer
+        sgd(0.001f, 0.9f), // Optimizer
         { "soft_cross_entropy" }, // Loss
         { "categorical_accuracy" } // Metric
     );
@@ -54,7 +54,7 @@ int main()
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
 
-    int num_samples = d.GetSplit().size();
+    int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
 
     vector<int> indices(batch_size);
@@ -101,7 +101,7 @@ int main()
 
     // Evaluation
     d.SetSplit(SplitType::test);
-    num_samples = d.GetSplit().size();
+    num_samples = vsize(d.GetSplit());
     num_batches = num_samples / batch_size;
 
     cout << "Evaluate test:" << endl;

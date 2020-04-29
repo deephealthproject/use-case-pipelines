@@ -28,7 +28,7 @@ int main()
 
     // Build model
     build(net,
-        sgd(0.001, 0.9), // Optimizer
+        sgd(0.001f, 0.9f), // Optimizer
         { "soft_cross_entropy" }, // Losses
         { "categorical_accuracy" } // Metrics
     );
@@ -62,7 +62,7 @@ int main()
     tensor output, target, result, single_image;
 
     d.SetSplit(SplitType::test);
-    int num_samples_test = d.GetSplit().size();
+    int num_samples_test = vsize(d.GetSplit());
     int num_batches_test = num_samples_test / batch_size;
     float sum = 0., ca = 0.;
 
@@ -130,7 +130,7 @@ int main()
         cout << "categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
     }
 
-    float total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0) / total_metric.size();
+    float total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
     cout << "Total categorical accuracy: " << total_avg << endl;
 
     ofstream of("output_classification_inference.txt");

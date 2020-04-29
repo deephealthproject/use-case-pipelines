@@ -39,7 +39,7 @@ int main()
 
     // Build model
     build(net,
-        adam(0.0001), //Optimizer
+        adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
         { "mean_squared_error" } // Metrics
     );
@@ -75,13 +75,13 @@ int main()
     tensor y = eddlT::create({ batch_size, d.n_channels_gt_, size[0], size[1] });
 
     // Get number of training samples
-    int num_samples = d.GetSplit().size();
+    int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
 
     // Get number of validation samples
     d.SetSplit(SplitType::validation);
 
-    int num_samples_validation = d.GetSplit().size();
+    int num_samples_validation = vsize(d.GetSplit());
     int num_batches_validation = num_samples_validation / batch_size;
 
     vector<int> indices(batch_size);

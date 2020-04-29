@@ -35,7 +35,7 @@ int main()
 
     // Build model
     build(net,
-        adam(0.0001), //Optimizer
+        adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
         { "mean_squared_error" } // Metrics
     );
@@ -62,7 +62,7 @@ int main()
 
     // Get number of test samples
     d.SetSplit(SplitType::test);
-    int num_samples_test = d.GetSplit().size();
+    int num_samples_test = vsize(d.GetSplit());
     int num_batches_test = num_samples_test / batch_size;
 
     View<DataType::float32> img_t;

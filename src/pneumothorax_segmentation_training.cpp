@@ -12,7 +12,7 @@ using namespace eddl;
 using namespace std;
 using namespace std::filesystem;
 
-// Custom LoadBatch for pneumothorax specific problem. 
+// Custom LoadBatch for pneumothorax specific problem.
 vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
 {
     int& bs = d.batch_size_;
@@ -29,8 +29,7 @@ vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels,
     int index = 0;
     // Fill tensors with data
     for (int i = start, j = 0; i < start + bs; ++i, ++j) {
-
-        if(d.current_split_ == SplitType::training) {
+        if (d.current_split_ == SplitType::training) {
             // in training, check if you can take other black ground truth images..
             if (mask_indices.size() * 1.25 - i > mask_indices.size() - m_i) {
                 // generate a random value between 0 and 1. With a 80% probability we take a sample with a ground truth with mask if there are still some available.
@@ -103,7 +102,7 @@ int main()
 
     // Build model
     build(net,
-        adam(0.0001), //Optimizer
+        adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
         { "mean_squared_error" } // Metrics
     );
@@ -145,13 +144,13 @@ int main()
     set_difference(total_indices.begin(), total_indices.end(), training_validation_test_indices.begin(), training_validation_test_indices.end(), std::inserter(black, black.begin()));
 
     // Get number of training samples. Add a 25% of training samples with black ground truth.
-    int num_samples = d.GetSplit().size() * 1.25;
+    int num_samples = static_cast<int>(d.GetSplit().size() * 1.25);
     int num_batches = num_samples / batch_size;
 
     d.SetSplit(SplitType::validation);
 
     // Get number of validation samples. Add a 25% of validation samples with black ground truth.
-    int num_samples_validation = d.GetSplit().size() * 1.25;
+    int num_samples_validation = static_cast<int>(d.GetSplit().size() * 1.25);
     int num_batches_validation = num_samples_validation / batch_size;
 
     // Split indices of images with a black ground truth for training and validation
@@ -174,7 +173,6 @@ int main()
 
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
-
         d.ResetAllBatches();
         m_i = 0, b_i = 0;
 
