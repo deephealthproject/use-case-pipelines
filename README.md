@@ -15,7 +15,7 @@ The YAML datasets format is described [here](https://github.com/deephealthprojec
 #### MNIST
 Automatically downloaded and extracted by CMake.
 
-#### ISIC
+#### ISIC - [isic-archive.com](https://www.isic-archive.com/#!/topWithHeader/tightContentTop/challenges)
 
 _Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. Change the dataset path into the `skin_lesion_classification_training.cpp` source file accordingly. To perform only inference, change the dataset path into the `skin_lesion_classification_inference.cpp` source file and download checkpoints [here](https://drive.google.com/file/d/1HzEtAni3WNmpwBBBT6fZ5hkW9wJAgqF2/view?usp=sharing) (best accuracy on validation in 50 epochs).
 
