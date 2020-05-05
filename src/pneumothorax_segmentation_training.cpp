@@ -51,7 +51,7 @@ vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels,
         }
 
         // insert the original name of images and ground truth in case you want to save predictions during validation
-        const Sample& elem = d.samples_[index];
+        Sample& elem = d.samples_[index];
         names.emplace_back(elem.location_[0]);
         names.emplace_back(elem.label_path_.value());
 
