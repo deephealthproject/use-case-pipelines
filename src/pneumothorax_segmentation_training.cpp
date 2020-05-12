@@ -261,6 +261,9 @@ int main()
                     gt->mult_(255.);
                     ImWrite(current_path / filename_gt, gt_t);
                 }
+
+                delete img;
+                delete gt;
             }
             cout << endl;
         }

@@ -95,6 +95,8 @@ int main()
 
             img->mult_(255.);
             ImWrite(output_path / filename.replace_extension(".png"), img_t);
+
+            delete img;
         }
         cout << endl;
     }

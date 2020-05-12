@@ -61,10 +61,7 @@ int main()
     // Prepare tensors which store batch
     tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
     tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
-    tensor output;
-    tensor target;
-    tensor result;
-    tensor single_image;
+    tensor output, target, result, single_image;
 
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
