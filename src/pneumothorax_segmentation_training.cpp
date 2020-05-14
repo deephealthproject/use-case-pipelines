@@ -31,6 +31,7 @@ vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels,
     for (int i = start, j = 0; i < start + bs; ++i, ++j) {
         if (d.current_split_ == SplitType::training) {
             // in training, check if you can take other black ground truth images..
+            // b_i < mask_indices.size() * 0.25
             if (mask_indices.size() * 1.25 - i > mask_indices.size() - m_i) {
                 // generate a random value between 0 and 1. With a 80% probability we take a sample with a ground truth with mask if there are still some available.
                 auto prob = std::uniform_real_distribution<>(0, 1)(g);
@@ -118,7 +119,9 @@ int main()
     auto training_augs = make_unique<SequentialAugmentationContainer>(
         AugResizeDim(size, InterpolationType::nearest),
         AugMirror(.5),
-        AugRotate({ -10, 10 }));
+        AugRotate({ -10, 10 }),
+        AugBrightness({ 0, 30 }),
+        AugGammaContrast({ 0,3 }));
 
     auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size, InterpolationType::nearest));
 
@@ -160,10 +163,9 @@ int main()
     vector<int> indices(batch_size);
     iota(indices.begin(), indices.end(), 0);
 
-    View<DataType::float32> img_t;
-    View<DataType::float32> gt_t;
-    Image orig_img_t, labels, tmp;
-    vector<vector<Point2i>> contours;
+    View<DataType::float32> pred_ecvl;
+    View<DataType::float32> gt_ecvl;
+    Image orig_img, orig_gt;
     ofstream of;
     Eval evaluator;
     cv::TickMeter tm;
@@ -198,6 +200,10 @@ int main()
 
             // Load a batch
             PneumothoraxLoadBatch(d, x, y, d.GetSplit(), black_training, m_i, b_i);
+            tm.stop();
+            cout << "Load time: " << tm.getTimeSec() << " - ";
+            tm.reset();
+            tm.start();
 
             // Preprocessing
             x->div_(255.);
@@ -208,7 +214,7 @@ int main()
 
             print_loss(net, j);
             tm.stop();
-            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
+            cout << " - Train time: " << tm.getTimeSec() << "\n";
         }
 
         cout << "Saving weights..." << endl;
@@ -235,34 +241,50 @@ int main()
             tensor output = getTensor(out_sigm);
 
             // Compute Dice metric and optionally save the output images
-            for (int k = 0, n = 0; k < batch_size; ++k, ++n) {
-                tensor img = eddlT::select(output, k);
-                TensorToView(img, img_t);
-                img_t.colortype_ = ColorType::GRAY;
-                img_t.channels_ = "xyc";
+            for (int k = 0, n = 0; k < batch_size; ++k, n+=2) {
+                tensor pred = eddlT::select(output, k); // select requires to delete tensor
+                TensorToView(pred, pred_ecvl);
+                pred_ecvl.colortype_ = ColorType::GRAY;
+                pred_ecvl.channels_ = "xyc";
 
-                tensor gt = eddlT::select(y, k);
-                TensorToView(gt, gt_t);
-                gt_t.colortype_ = ColorType::GRAY;
-                gt_t.channels_ = "xyc";
+                tensor gt = eddlT::select(y, k); // select requires to delete tensor
+                TensorToView(gt, gt_ecvl);
+                gt_ecvl.colortype_ = ColorType::GRAY;
+                gt_ecvl.channels_ = "xyc";
 
-                cout << "- Dice: " << evaluator.DiceCoefficient(img_t, gt_t) << " ";
+                cout << "- Dice: " << evaluator.DiceCoefficient(pred_ecvl, gt_ecvl) << " ";
 
                 if (save_images) {
-                    path filename = names[n].filename();
-                    path filename_gt = names[++n].filename();
+                    pred->mult_(255.);
 
-                    img->mult_(255.);
-                    ImWrite(current_path / filename.replace_extension(".jpg"), img_t);
+                    // Save original image fused together with prediction (red mask) and ground truth (green mask)
+                    ImRead(names[n], orig_img);
+                    ImRead(names[n+1], orig_gt, ImReadMode::GRAYSCALE);
+                    ChangeColorSpace(orig_img, orig_img, ColorType::BGR);
 
-                    if (filename_gt.compare("black.png") == 0) {
-                        continue;
+                    ResizeDim(pred_ecvl, pred_ecvl, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
+
+                    View<DataType::uint8> v_orig(orig_img);
+                    auto i_pred = pred_ecvl.Begin();
+                    auto i_gt = orig_gt.Begin<uint8_t>();
+
+                    for (int c = 0; c < pred_ecvl.Width(); ++c) {
+                        for (int r = 0; r < pred_ecvl.Height(); ++r, ++i_pred, ++i_gt) {
+                            // Replace in the green channel of the original image pixels that are 255 in the ground truth mask 
+                            if (*i_gt == 255) {
+                                v_orig({ r, c, 1 }) = 255;
+                            }
+                            // Replace in the red channel of the original image pixels that are 255 in the prediction mask 
+                            if (*i_pred == 255) {
+                                v_orig({ r, c, 2 }) = 255;
+                            }
+                        }
                     }
-                    gt->mult_(255.);
-                    ImWrite(current_path / filename_gt, gt_t);
+
+                    ImWrite(current_path / names[n].filename().replace_extension(".png"), orig_img);
                 }
 
-                delete img;
+                delete pred;
                 delete gt;
             }
             cout << endl;
