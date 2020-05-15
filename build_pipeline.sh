@@ -36,7 +36,7 @@ git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
 git checkout tags/v0.2.1 # Release 0.2.1
 mkdir -p build && cd build
-cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 ECVL_INSTALL_DIR=$UCP_PATH/$DEPENDENCIES_DIR/ecvl/build/install
 
