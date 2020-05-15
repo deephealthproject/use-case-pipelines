@@ -57,8 +57,8 @@ int main()
     }
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
     tensor output, target, result, single_image;
 
     d.SetSplit(SplitType::test);
@@ -84,13 +84,13 @@ int main()
         x->div_(255.0);
 
         forward(net, { x });
-        output = getTensor(out);
+        output = getOutput(out);
 
         // Compute accuracy and optionally save the output images
         sum = 0.;
         for (int j = 0; j < batch_size; ++j, ++n) {
-            result = eddlT::select(output, j);
-            target = eddlT::select(y, j);
+            result = output->select({to_string(j)});
+            target = y->select({to_string(j)});
 
             ca = m->value(target, result);
 
@@ -112,7 +112,7 @@ int main()
                     }
                 }
 
-                single_image = eddlT::select(x, j);
+                single_image = x->select({to_string(j)});
                 TensorToView(single_image, img_t);
                 img_t.colortype_ = ColorType::BGR;
                 single_image->mult_(255.);

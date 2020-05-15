@@ -105,7 +105,7 @@ int main()
     build(net,
         adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
-        { "mean_squared_error" } // Metrics
+        { "dice" } // Metrics
     );
 
     toGPU(net, "low_mem");
@@ -133,8 +133,8 @@ int main()
     DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, d.n_channels_gt_, size[0], size[1] });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = new Tensor({ batch_size, d.n_channels_gt_, size[0], size[1] });
 
     // Retrieve indices of images with a black ground truth
     vector<int> total_indices(d.samples_.size());
@@ -238,16 +238,16 @@ int main()
             y->div_(255.);
 
             forward(net, { x });
-            tensor output = getTensor(out_sigm);
+            tensor output = getOutput(out_sigm);
 
             // Compute Dice metric and optionally save the output images
-            for (int k = 0, n = 0; k < batch_size; ++k, n+=2) {
-                tensor pred = eddlT::select(output, k); // select requires to delete tensor
+            for (int k = 0, n = 0; k < batch_size; ++k, n += 2) {
+                tensor pred = output->select({ to_string(k) });
                 TensorToView(pred, pred_ecvl);
                 pred_ecvl.colortype_ = ColorType::GRAY;
                 pred_ecvl.channels_ = "xyc";
 
-                tensor gt = eddlT::select(y, k); // select requires to delete tensor
+                tensor gt = y->select({ to_string(k) });
                 TensorToView(gt, gt_ecvl);
                 gt_ecvl.colortype_ = ColorType::GRAY;
                 gt_ecvl.channels_ = "xyc";
@@ -259,7 +259,7 @@ int main()
 
                     // Save original image fused together with prediction (red mask) and ground truth (green mask)
                     ImRead(names[n], orig_img);
-                    ImRead(names[n+1], orig_gt, ImReadMode::GRAYSCALE);
+                    ImRead(names[n + 1], orig_gt, ImReadMode::GRAYSCALE);
                     ChangeColorSpace(orig_img, orig_img, ColorType::BGR);
 
                     ResizeDim(pred_ecvl, pred_ecvl, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
@@ -270,11 +270,11 @@ int main()
 
                     for (int c = 0; c < pred_ecvl.Width(); ++c) {
                         for (int r = 0; r < pred_ecvl.Height(); ++r, ++i_pred, ++i_gt) {
-                            // Replace in the green channel of the original image pixels that are 255 in the ground truth mask 
+                            // Replace in the green channel of the original image pixels that are 255 in the ground truth mask
                             if (*i_gt == 255) {
                                 v_orig({ r, c, 1 }) = 255;
                             }
-                            // Replace in the red channel of the original image pixels that are 255 in the prediction mask 
+                            // Replace in the red channel of the original image pixels that are 255 in the prediction mask
                             if (*i_pred == 255) {
                                 v_orig({ r, c, 2 }) = 255;
                             }

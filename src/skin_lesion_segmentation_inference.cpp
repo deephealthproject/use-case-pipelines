@@ -56,8 +56,8 @@ int main()
     DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, move(dataset_augmentations));
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, d.n_channels_gt_, size[0], size[1] });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = new Tensor({ batch_size, d.n_channels_gt_, size[0], size[1] });
     tensor output;
 
     // Get number of test samples
@@ -88,16 +88,16 @@ int main()
         y->div_(255.);
 
         forward(net, { x });
-        output = getTensor(out_sigm);
+        output = getOutput(out_sigm);
 
         // Compute IoU metric and optionally save the output images
         for (int j = 0; j < batch_size; ++j, ++n) {
-            tensor img = eddlT::select(output, j);
+            tensor img = output->select({to_string(j)});
             TensorToView(img, img_t);
             img_t.colortype_ = ColorType::GRAY;
             img_t.channels_ = "xyc";
 
-            tensor gt = eddlT::select(y, j);
+            tensor gt = y->select({to_string(j)});
             TensorToView(gt, gt_t);
             gt_t.colortype_ = ColorType::GRAY;
             gt_t.channels_ = "xyc";
@@ -105,7 +105,7 @@ int main()
             cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
             if (save_images) {
-                tensor orig_img = eddlT::select(x, j);
+                tensor orig_img = x->select({to_string(j)});
                 orig_img->mult_(255.);
                 TensorToImage(orig_img, orig_img_t);
                 orig_img_t.colortype_ = ColorType::BGR;

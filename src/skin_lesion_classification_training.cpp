@@ -59,8 +59,8 @@ int main()
     DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
     tensor output, target, result, single_image;
 
     int num_samples = vsize(d.GetSplit());
@@ -151,12 +151,12 @@ int main()
 
             // Evaluate batch
             forward(net, { x });
-            output = getTensor(out);
+            output = getOutput(out);
 
             sum = 0.;
             for (int k = 0; k < batch_size; ++k, ++n) {
-                result = eddlT::select(output, k);
-                target = eddlT::select(y, k);
+                result = output->select({to_string(k)});
+                target = y->select({to_string(k)});
 
                 ca = m->value(target, result);
 
@@ -178,7 +178,7 @@ int main()
                         }
                     }
 
-                    single_image = eddlT::select(x, k);
+                    single_image = x->select({to_string(k)});
                     TensorToView(single_image, img_t);
                     img_t.colortype_ = ColorType::BGR;
                     single_image->mult_(255.);

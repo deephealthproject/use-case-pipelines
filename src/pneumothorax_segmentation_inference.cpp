@@ -32,7 +32,7 @@ int main()
     build(net,
         adam(0.0001f), //Optimizer
         { "cross_entropy" }, // Losses
-        { "mean_squared_error" } // Metrics
+        { "dice" } // Metrics
     );
 
     toGPU(net, "low_mem");
@@ -53,7 +53,7 @@ int main()
     DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
     tensor output;
 
     // Get number of test samples.
@@ -76,11 +76,11 @@ int main()
         x->div_(255.);
 
         forward(net, { x });
-        output = getTensor(out_sigm);
+        output = getOutput(out_sigm);
 
         // Save the output images
         for (int k = 0; k < batch_size; ++k, ++n) {
-            tensor img = eddlT::select(output, k);
+            tensor img = output->select({to_string(k)});
             TensorToView(img, img_t);
             img_t.colortype_ = ColorType::GRAY;
             img_t.channels_ = "xyc";

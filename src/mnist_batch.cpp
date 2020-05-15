@@ -51,8 +51,8 @@ int main()
     DLDataset d("mnist/mnist.yml", batch_size, move(dataset_augmentations), ctype);
 
     // Prepare tensors which store batch
-    tensor x = eddlT::create({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = eddlT::create({ batch_size, static_cast<int>(d.classes_.size()) });
+    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
 
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
