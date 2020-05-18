@@ -15,7 +15,7 @@ git clone --recurse-submodule https://github.com/deephealthproject/eddl.git
 cd eddl
 git checkout 02e37c0dfb674468495f4d0ae3c159de3b2d3cc0 # Latest master, waiting for the release
 mkdir -p build && cd build
-cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_SHARED_LIB=OFF -DBUILD_PROTOBUF=OFF -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_SUPERBUILD=ON -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 EDDL_INSTALL_DIR=$UCP_PATH/$DEPENDENCIES_DIR/eddl/build/cmake
 
