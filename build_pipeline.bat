@@ -12,7 +12,8 @@ mkdir %DEPENDENCIES_DIR% & cd %DEPENDENCIES_DIR%
 REM EDDL
 git clone --recurse-submodule https://github.com/deephealthproject/eddl.git
 cd eddl
-git checkout tags/0.4.3
+REM Latest master, waiting for the release
+git checkout 02e37c0dfb674468495f4d0ae3c159de3b2d3cc0
 mkdir build & cd build
 cmake -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBUILD_TARGET=%DEVICE% -DBUILD_SHARED_LIB=OFF -DBUILD_PROTOBUF=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config %BUILD_TYPE% --parallel %PROC%
@@ -35,7 +36,8 @@ REM ECVL
 cd %UCP_PATH%\%DEPENDENCIES_DIR%
 git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
-git checkout tags/v0.2.1
+REM Latest master, waiting for the release
+git checkout c5326665e93ab4f34d143bd94de527f4fe643053
 mkdir build & cd build
 cmake -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DOpenCV_DIR=%OPENCV_INSTALL_DIR% -Deddl_DIR=%EDDL_INSTALL_DIR% -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config %BUILD_TYPE% --parallel %PROC%
