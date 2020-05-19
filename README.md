@@ -42,8 +42,18 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 
 ## Building
 1.  Downloads and builds the dependencies of the project running:
-    - `build_pipeline.sh` (_\*nix_)
-    - `build_pipeline.bat` (_Windows_)
+    - (_\*nix_)
+     ```
+     git clone https://github.com/deephealthproject/use_case_pipeline.git
+     cd use_case_pipeline
+     chmod +x install_dependencies.sh
+     sudo ./install_dependencies.sh
+
+     chmod +x build_pipeline.sh
+     ./build_pipeline.sh
+     ```
+    - (_Windows_) - 
+      `build_pipeline.bat`
 
     **N.B.** EDDL is built for GPU by default.
 2. The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
