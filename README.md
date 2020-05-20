@@ -41,23 +41,78 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 ```
 
 ## Building
-1.  Downloads and builds the dependencies of the project running:
-    - (_\*nix_)
-     ```
-     git clone https://github.com/deephealthproject/use_case_pipeline.git
-     cd use_case_pipeline
-     chmod +x install_dependencies.sh
-     sudo ./install_dependencies.sh
 
-     chmod +x build_pipeline.sh
-     ./build_pipeline.sh
-     ```
-    - (_Windows_) - 
-      `build_pipeline.bat`
+- **\*nix**
+    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs:
+        ```bash
+        sudo apt update
+        sudo apt install wget git make gcc-8 g++-8
 
-    **N.B.** EDDL is built for GPU by default.
-2. The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
+        # cmake version >= 3.13 is required for ECVL
+        wget https://cmake.org/files/v3.13/cmake-3.13.5-Linux-x86_64.tar.gz
+        tar -xf cmake-3.13.5-Linux-x86_64.tar.gz
+
+        # symbolic link for cmake
+        sudo ln -s /<path/to>/cmake-3.13.5-Linux-x86_64/bin/cmake /usr/bin/cmake
+        # symbolic link for cublas if we have cuda >= 10.1
+        sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/libcublas.so
+
+        # if other versions of gcc (e.g., gcc-7) are present, set a higher priority to gcc-8 so that it is chosen as the default
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+
+        git clone https://github.com/deephealthproject/use_case_pipeline.git
+        cd use_case_pipeline
+
+        # install dependencies as sudo so that they will be installed in "standard" system directories
+        chmod +x install_dependencies.sh
+        sudo ./install_dependencies.sh
+
+        # install EDDL, OpenCV, ECVL and build the pipeline
+        chmod +x build_pipeline.sh
+        ./build_pipeline.sh
+        ```
+
+    - Building with all the dependencies already installed:
+        ```bash
+        git clone https://github.com/deephealthproject/use_case_pipeline.git
+        cd use_case_pipeline
+        mkdir build && cd build
+
+        # if ECVL is not installed in a "standard" system directory (like /usr/local/) you have to provide the installation directory
+        cmake -Decvl_DIR=/<path/to>/ecvl/build/install ..
+        make
+        ```
+    
+- **Windows**
+    - Building assuming `cmake >= 3.13`, `wget`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
+        ```bash
+        # install EDDL and all its dependencies, OpenCV, ECVL and build the pipeline
+        git clone https://github.com/deephealthproject/use_case_pipeline.git
+        cd use_case_pipeline
+        build_pipeline.bat
+        ```
+    
+**N.B.** EDDL is built for GPU by default.
+    
+## Training and inference
+
+- The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
     1. MNIST_BATCH and SKIN_LESION_CLASSIFICATION_TRAINING train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
     1. SKIN_LESION_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
     1. PNEUMOTHORAX_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
     1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process.
+
+- Examples of output for the pre-trained models provided:
+    1. *ISIC segmentation test set*:
+
+       The red line represents the prediction processed by ECVL to obtain contours that are overlaid on the original image.
+
+        ![](/imgs/isic_1.png)  |  ![](/imgs/isic_2.png)  |  ![](/imgs/isic_3.png) 
+        :----------------------|-------------------------|----------------------:
+    1. *Pneumothorax segmentation validation set*:
+
+       The red area represents the prediction, the green area the ground truth. The yellow area therefore represents the correctly predicted pixels.
+
+       ![](/imgs/pneumothorax_1.png) | ![](/imgs/pneumothorax_2.png) | ![](/imgs/pneumothorax_3.png)
+       :----------------------------:|:-----------------------------:|:----------------------------:
