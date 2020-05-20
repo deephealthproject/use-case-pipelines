@@ -85,7 +85,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
         ```
     
 - **Windows**
-    - Building assuming `cmake >= 3.13`, `wget`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
+    - Building assuming `cmake >= 3.13`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
         ```bash
         # install EDDL and all its dependencies, OpenCV, ECVL and build the pipeline
         git clone https://github.com/deephealthproject/use_case_pipeline.git
