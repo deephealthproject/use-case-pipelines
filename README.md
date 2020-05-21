@@ -27,6 +27,8 @@ Dataset taken from a kaggle challenge (more details [here](https://www.kaggle.co
   1. Download from [here](https://drive.google.com/uc?id=1e9f0LzPB8euHRJLA5URknUFZHD-8AtE9&export=download) ground truth masks and the YAML dataset file.
   1. In order to copy the ground truth masks in the directory of the corresponding images, edit the `src/copy_ground_truth_pneumothorax.cpp` file with the path to the downloaded dataset and ground truth directory and run it. Move the YAML file in the `siim` dataset folder.
   
+  Short [video](https://drive.google.com/uc?id=17qlmm9Jf_D3K4iB3Y9pfrpDssFxk2q69&export=download) in which these steps are shown.
+  
 From the 2669 distinct training images with mask, 200 are randomly sampled as validation set.
 - Training set: 3086 total images - 80% with mask and 20% without mask.
 - Validation set: 250 total images - 80% with mask and 20% without mask.
@@ -43,7 +45,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 ## Building
 
 - **\*nix**
-    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs:
+    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs ([video](https://drive.google.com/uc?id=1xGPHIEXK-vzxEF0y8N148EhFud1Ackm4&export=download) in which these steps are performed in a clean nvidia docker image):
         ```bash
         sudo apt update
         sudo apt install wget git make gcc-8 g++-8
