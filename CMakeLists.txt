@@ -70,9 +70,9 @@ add_executable(SKIN_LESION_SEGMENTATION_INFERENCE)
 add_executable(PNEUMOTHORAX_SEGMENTATION_TRAINING)
 add_executable(PNEUMOTHORAX_SEGMENTATION_INFERENCE)
 add_executable(COPY_GROUND_TRUTH_PNEUMOTHORAX)
-add_subdirectory(src)
-add_subdirectory("src/metrics")
-add_subdirectory("src/models")
+add_subdirectory(cpp)
+add_subdirectory("cpp/metrics")
+add_subdirectory("cpp/models")
 
 # Set SKIN_LESION_CLASSIFICATION_TRAINING as default
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION_TRAINING)
