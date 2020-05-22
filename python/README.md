@@ -1,10 +1,25 @@
-# Python DH USE CASE Pipeline 
+# Python pipeline
 
-Pipelines that use PyEDDL and PyECVL to train a CNN on three different datasets 
-(_MNIST_, _ISIC_ and _PNEUMOTHORAX_), applying different image augmentations,
-for both the classification and the segmentation task.
+This directory contains a Python version of the pipeline.
 
-These Deep Neural Network examples derive from the [github.com/deephealthproject/use_case_pipeline](https://github.com/deephealthproject/use_case_pipeline)
-_C++_ repository, which contains detailed instructions for downloading checkpoints and datasets.
+It requires [PyECVL](https://github.com/deephealthproject/pyecvl), which can
+be installed following this
+[guide](https://deephealthproject.github.io/pyecvl/installation.html). Note
+that PyECVL/ECVL must be installed with
+[EDDL](https://github.com/deephealthproject/eddl) support, so you also need to
+install [PyEDDL](https://github.com/deephealthproject/pyeddl), as explained in
+the instructions. Note that all software packages must be compiled with the
+same compiler.
 
-These _Python_ implementations requires PyECVL, which can be installed following this [guide](https://deephealthproject.github.io/pyecvl/installation.html).
+The current version of the python pipeline requires PyECVL 0.3.0.
+
+An alternative to manually installing the required packages is to use the
+[DeepHealth Docker images](https://github.com/deephealthproject/docker-libs).
+
+
+## Running the pipeline on GPU
+
+If you want to run the pipeline on GPU, you need to install EDDL/PyEDDL with
+GPU support. The [PyEDDL installation
+guide](https://deephealthproject.github.io/pyeddl/installation.html) explains
+how to do this.
