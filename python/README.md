@@ -23,3 +23,10 @@ If you want to run the pipeline on GPU, you need to install EDDL/PyEDDL with
 GPU support. The [PyEDDL installation
 guide](https://deephealthproject.github.io/pyeddl/installation.html) explains
 how to do this.
+
+
+## Development history
+
+The Python version of the pipeline was originally hosted in the PyECVL
+repository under
+[examples/use_case_pipeline](https://github.com/deephealthproject/pyecvl/tree/eedc6041e548f850ccf3022a6165dbd1386978e9/examples/use_case_pipeline).
