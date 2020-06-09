@@ -1,5 +1,5 @@
+#include "data_generator/data_generator.h"
 #include "models/models.h"
-#include "DataGenerator.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -12,65 +12,64 @@ using namespace eddl;
 using namespace std;
 using namespace std::filesystem;
 
-
-int main( int argc, char *argv[] )
+int main(int argc, char* argv[])
 {
     // Settings
-    int epochs = 500;
-    int batch_size = 8;
+    int epochs = 50;
+    int batch_size = 12;
     int num_classes = 8;
     std::vector<int> size{ 224,224 }; // Size of images
 
-    vector<int> gpus = {1};
+    vector<int> gpus = { 1 };
     int lsb = 1;
     string mem = "low_mem";
+    string checkpoint = "";
 
-    string net_filename = "";
-    
-    for( int i=1; i < argc; i++ ) {
-        if ( !strcmp( argv[i], "--low-mem" ) ) {
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--low-mem")) {
             mem = "low_mem";
-        } else if ( !strcmp( argv[i], "--mid-mem" ) ) {
+        }
+        else if (!strcmp(argv[i], "--mid-mem")) {
             mem = "mid_mem";
-        } else if ( !strcmp( argv[i], "--full-mem" ) ) {
+        }
+        else if (!strcmp(argv[i], "--full-mem")) {
             mem = "full_mem";
-        } else if ( !strcmp( argv[i], "--lsb" ) ) {
-            lsb = atoi( argv[++i] );
-        } else if ( !strcmp( argv[i], "--batch-size" ) ) {
-            batch_size = atoi( argv[++i] );
-        } else if ( !strcmp( argv[i], "--gpus-2" ) ) {
-            gpus={1,1};
-        } else if ( !strcmp( argv[i], "--gpus-1" ) ) {
-            gpus={1};
-        } else if ( !strcmp( argv[i], "--model" ) ) {
-            net_filename = argv[++i];
+        }
+        else if (!strcmp(argv[i], "--lsb")) {
+            lsb = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "--batch-size")) {
+            batch_size = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "--gpus-2")) {
+            gpus = { 1,1 };
+        }
+        else if (!strcmp(argv[i], "--gpus-1")) {
+            gpus = { 1 };
+        }
+        else if (!strcmp(argv[i], "--checkpoint")) {
+            checkpoint = argv[++i];
         }
     }
-    
-    compserv cs = CS_GPU( gpus, lsb, mem );
 
     std::mt19937 g(std::random_device{}());
 
     // Define network
     layer in = Input({ 3, size[0],  size[1] });
-    //layer out = VGG16(in, num_classes);
-    //layer out = VGG16_inception_2(in, num_classes);
-    layer out = ResNet_01(in, num_classes);
+    layer out = VGG16(in, num_classes);
     model net = Model({ in }, { out });
 
     // Build model
     build(net,
-        // sgd(0.001f, 0.9f), // Optimizer
-        adam(0.0001f), // Optimizer
+        sgd(0.001f, 0.9f), // Optimizer
         { "soft_cross_entropy" }, // Losses
         { "categorical_accuracy" }, // Metrics
-        cs // Computing Service
+        CS_GPU(gpus, lsb, mem) // Computing Service
     );
 
-    //toGPU(net);
-
-    if ( net_filename.size() > 0 ) load(net, net_filename, "bin");
-
+    if (!checkpoint.empty()) {
+        load(net, checkpoint, "bin");
+    }
 
     // View model
     summary(net);
@@ -93,20 +92,18 @@ int main( int argc, char *argv[] )
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    //DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
-    DLDataset d("/home/jon/bd/workshop/ISIC/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
-
-    // Prepare tensors which store batch
-    // tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    // tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
-    tensor output, target, result, single_image;
-
+    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
+    // Create producer thread with 'DLDataset d' and 'std::queue q'
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;
+    DataGenerator d_generator_t(&d, batch_size, size, { vsize(d.classes_) }, 3);
 
     d.SetSplit(SplitType::validation);
     int num_samples_validation = vsize(d.GetSplit());
     int num_batches_validation = num_samples_validation / batch_size;
+    DataGenerator d_generator_v(&d, batch_size, size, { vsize(d.classes_) }, 2);
+
+    tensor output, target, result, single_image;
     float sum = 0., ca = 0.;
 
     vector<float> total_metric;
@@ -128,19 +125,12 @@ int main( int argc, char *argv[] )
     cv::TickMeter tm;
     cv::TickMeter tm_epoch;
 
-
-    // Create producer thread with 'DLDataset d' and 'std::queue q'
-    d.SetSplit(SplitType::training);
-    // Shuffle training list
-    shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-    d.ResetAllBatches();
-    DataGenerator d_generator_t( &d, batch_size, size, { static_cast<int>(d.classes_.size()) }, 3 );
-
-    d.SetSplit(SplitType::validation);
-    DataGenerator d_generator_v( &d, batch_size, size, { static_cast<int>(d.classes_.size()) }, 2 );
-
     cout << "Starting training" << endl;
     for (int i = 0; i < epochs; ++i) {
+
+        tm_epoch.reset();
+        tm_epoch.start();
+
         auto current_path{ output_path / path("Epoch_" + to_string(i)) };
         if (save_images) {
             for (int c = 0; c < d.classes_.size(); ++c) {
@@ -157,34 +147,24 @@ int main( int argc, char *argv[] )
         shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
         d.ResetAllBatches();
 
-        tm_epoch.reset();
-        tm_epoch.start();
-
-        d_generator_t.start();
+        d_generator_t.Start();
 
         // Feed batches to the model
-        for( int j=0; d_generator_t.has_next() /* j < num_batches */; ++j ) {
-
+        for (int j = 0; d_generator_t.HasNext() /* j < num_batches */; ++j) {
             tm.reset();
             tm.start();
             cout << "Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches << ") - ";
-            cout << " |fifo| " << d_generator_t.size() << " ";
+            cout << "|fifo| " << d_generator_t.Size() << " - ";
 
             tensor x, y;
 
             // Load a batch
-            // d.LoadBatch(x, y);
-            if ( d_generator_t.pop_batch( x, y ) ) {
-
+            if (d_generator_t.PopBatch(x, y)) {
                 // Preprocessing
                 x->div_(255.0);
 
-                // Prepare data
-                vtensor tx{ x };
-                vtensor ty{ y };
-
                 // Train batch
-                train_batch(net, tx, ty, indices);
+                train_batch(net, { x }, { y }, indices);
 
                 // Print errors
                 print_loss(net, j);
@@ -194,9 +174,10 @@ int main( int argc, char *argv[] )
             }
             tm.stop();
 
-            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
+            cout << "Elapsed time: " << tm.getTimeSec() << endl;
         }
-        d_generator_t.stop();
+
+        d_generator_t.Stop();
         tm_epoch.stop();
         cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
 
@@ -206,19 +187,16 @@ int main( int argc, char *argv[] )
         // Evaluation
         d.SetSplit(SplitType::validation);
 
-        d_generator_v.start();
+        d_generator_v.Start();
 
-        cout << "Evaluating on validation subset:" << endl;
-        for( int j=0, n=0; d_generator_v.has_next(); ++j ) {
-
-            // cout << "Validation: Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") - ";
+        cout << "Evaluate:" << endl;
+        for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
+            cout << "Validation: Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") - ";
 
             tensor x, y;
 
             // Load a batch
-            // d.LoadBatch(x, y);
-            if ( d_generator_v.pop_batch(x, y) ) {
-
+            if (d_generator_v.PopBatch(x, y)) {
                 // Preprocessing
                 x->div_(255.0);
 
@@ -228,8 +206,8 @@ int main( int argc, char *argv[] )
 
                 sum = 0.;
                 for (int k = 0; k < batch_size; ++k, ++n) {
-                    result = output->select({to_string(k)});
-                    target = y->select({to_string(k)});
+                    result = output->select({ to_string(k) });
+                    target = y->select({ to_string(k) });
 
                     ca = m->value(target, result);
 
@@ -251,7 +229,7 @@ int main( int argc, char *argv[] )
                             }
                         }
 
-                        single_image = x->select({to_string(k)});
+                        single_image = x->select({ to_string(k) });
                         TensorToView(single_image, img_t);
                         img_t.colortype_ = ColorType::BGR;
                         single_image->mult_(255.);
@@ -266,13 +244,14 @@ int main( int argc, char *argv[] )
                     delete target;
                     delete single_image;
                 }
-                // cout << " categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
+                cout << " categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
 
                 delete x;
                 delete y;
             }
         }
-        d_generator_v.stop();
+
+        d_generator_v.Stop();
 
         total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
         cout << "Validation categorical accuracy: " << total_avg << endl;
@@ -282,8 +261,6 @@ int main( int argc, char *argv[] )
         of.close();
     }
 
-    // delete x;
-    // delete y;
     delete output;
 
     return EXIT_SUCCESS;

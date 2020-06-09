@@ -8,8 +8,8 @@ eddl::layer LeNet(eddl::layer x, const int& num_classes);
 
 // Model VGG16
 eddl::layer VGG16(eddl::layer x, const int& num_classes);
-eddl::layer VGG16_inception_1( eddl::layer x, const int & num_classes );
-eddl::layer VGG16_inception_2( eddl::layer x, const int & num_classes );
+eddl::layer VGG16_inception_1(eddl::layer x, const int& num_classes);
+eddl::layer VGG16_inception_2(eddl::layer x, const int& num_classes);
 
 // Model SegNet (https://mi.eng.cam.ac.uk/projects/segnet)
 eddl::layer SegNet(eddl::layer x, const int& num_classes);
