@@ -1,5 +1,8 @@
 #include "metrics/metrics.h"
 #include "models/models.h"
+#include "cxxopts.hpp"
+
+#include "eddl/serialization/onnx/eddl_onnx.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -77,38 +80,143 @@ vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels,
     return names;
 }
 
-int main()
+int main(int argc, char** argv)
 {
-    // Settings
-    int epochs = 50;
-    int batch_size = 2;
-    int num_classes = 1;
-    std::vector<int> size{ 512, 512 }; // Size of images
+    cxxopts::Options options("DeepHealth pipeline pneumothorax training", "");
 
-    std::mt19937 g(std::random_device{}());
+    options.add_options()
+        ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
+        ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("2"))
+        ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
+        ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
+        ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("512,512"))
+        ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
+        ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value("0.0001"))
+        ("model", "Model of the network", cxxopts::value<string>()->default_value("SegNetBN"))
+        ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
+        ("lsb", "How many batches are processed before synchronizing the model weights", cxxopts::value<int>()->default_value("1"))
+        ("m,mem", "GPU memory usage configuration", cxxopts::value<string>()->default_value("low_mem"))
+        ("r,result_dir", "Directory where the output images are stored", cxxopts::value<path>()->default_value("../output_images_pneumothorax"))
+        ("checkpoint_dir", "Directory where the checkpoints are stored", cxxopts::value<path>()->default_value("../checkpoints_pneumothorax"))
+        ("d,dataset_path", "Dataset path", cxxopts::value<path>())
+        ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
+        ("h,help", "Print usage");
 
-    bool save_images = true;
-    path output_path;
+    auto result = options.parse(argc, argv);
 
-    if (save_images) {
-        output_path = "../output_images_pneumothorax";
-        create_directory(output_path);
+    if (result.count("help")) {
+        cout << options.help() << endl;
+        return EXIT_SUCCESS;
     }
 
-    // Define network
-    layer in = Input({ 1, size[0], size[1] });
-    layer out = SegNetBN(in, num_classes);
-    layer out_sigm = Sigmoid(out);
-    model net = Model({ in }, { out_sigm });
+    // Settings
+    mt19937 g(std::random_device{}());
+    int epochs = result["epochs"].as<int>();
+    int batch_size = result["batch_size"].as<int>();
+    int num_classes = result["num_classes"].as<int>();
+    bool save_images = result["save_images"].as<bool>();
+    vector<int> size = result["size"].as<vector<int>>();
+    string model = result["model"].as<string>();
+    string loss = result["loss"].as<string>();
+    float lr = result["learning_rate"].as<float>();
+    vector<int> gpu;
+    int lsb;
+    string mem;
+    bool random_weights = true;
+    compserv cs;
+    Net* net;
+
+    path result_dir, checkpoint_dir, dataset_path;
+
+    if (result.count("dataset_path")) {
+        dataset_path = result["dataset_path"].as<path>();
+    }
+    else {
+        cout << ECVL_ERROR_MSG "'d,dataset_path' is a required argument." << endl;
+        return EXIT_FAILURE;
+    }
+
+    cout << "Options used: \n";
+    cout << "epochs: " << epochs << "\n";
+    cout << "batch_size: " << batch_size << "\n";
+    cout << "model: " << model << "\n";
+    cout << "loss: " << loss << "\n";
+    cout << "learning rate: " << lr << "\n";
+    cout << "num_classes: " << num_classes << "\n";
+    cout << "size: (" << size[0] << ", " << size[1] << ")\n";
+
+    checkpoint_dir = result["checkpoint_dir"].as<path>();
+    create_directory(checkpoint_dir);
+    cout << "dataset_path: " << dataset_path << "\n";
+    cout << "checkpoint_dir: " << checkpoint_dir << "\n";
+
+    if (result.count("checkpoint")) {
+        random_weights = false;
+        string checkpoint = result["checkpoint"].as<string>();
+        net = import_net_from_onnx_file(checkpoint);
+        cout << "pretrained weight: " << checkpoint << "\n";
+    }
+    else { // Define the network
+        layer in, out, out_sigm;
+        in = Input({ 1, size[0], size[1] });
+
+        if (!model.compare("SegNetBN")) {
+            out = SegNetBN(in, num_classes);
+        }
+        else if (!model.compare("UNetWithPaddingBN")) {
+            out = UNetWithPaddingBN(in, num_classes);
+        }
+        else if (!model.compare("SegNet")) {
+            out = SegNet(in, num_classes);
+        }
+        else if (!model.compare("UNetWithPadding")) {
+            out = UNetWithPadding(in, num_classes);
+        }
+        else {
+            cout << ECVL_ERROR_MSG << "You must specify one of these models: SegNetBN, UNetWithPaddingBN, SegNet, UNetWithPadding" << endl;
+            return EXIT_FAILURE;
+        }
+
+        out_sigm = Sigmoid(out);
+        net = Model({ in }, { out_sigm });
+    }
+
+    if (result.count("gpu")) {
+        gpu = result["gpu"].as<vector<int>>();
+        lsb = result["lsb"].as<int>();
+        mem = result["mem"].as<string>();
+        cs = CS_GPU(gpu, lsb, mem);
+        cout << "Model running on GPU: {";
+        for (auto& x : gpu) {
+            cout << x << ",";
+        }
+        cout << "}\n";
+        cout << "lsb: " << lsb << "\n";
+        cout << "mem: " << mem << "\n";
+    }
+    else {
+        cs = CS_CPU();
+        cout << "Model running on CPU\n";
+    }
+
+    if (save_images) {
+        result_dir = result["result_dir"].as<path>();
+        create_directory(result_dir);
+        cout << "save_images: true\n";
+        cout << "result output folder: " << result_dir << "\n";
+    }
+    else {
+        cout << "save_images: false\n" << endl;
+    }
 
     // Build model
     build(net,
-        adam(0.0001f), //Optimizer
-        { "cross_entropy" }, // Losses
-        { "dice" } // Metrics
+        adam(lr), // Optimizer
+        { loss }, // Loss
+        { "dice" }, // Metric
+        cs,
+        random_weights
     );
-
-    toGPU(net, "low_mem");
 
     // View model
     summary(net);
@@ -116,21 +224,30 @@ int main()
     setlogfile(net, "pneumothorax_segmentation");
 
     // Set augmentations for training and validation
-    auto training_augs = make_unique<SequentialAugmentationContainer>(
+    auto training_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(size, InterpolationType::nearest),
         AugMirror(.5),
-        AugRotate({ -10, 10 }),
-        AugBrightness({ 0, 30 }),
-        AugGammaContrast({ 0,3 }));
+        OneOfAugmentationContainer(
+            0.3,
+            AugGammaContrast({ 0,3 }),
+            AugBrightness({ 0, 30 })
+        ),
+        OneOfAugmentationContainer(
+            0.3,
+            AugElasticTransform({ 30, 120 }, { 3, 6 }),
+            AugGridDistortion({ 2, 5 }, { -0.3f, 0.3f }),
+            AugOpticalDistortion({ -0.3f, 0.3f }, { -0.1f, 0.1f })
+        ),
+        AugRotate({ -30, 30 }));
 
-    auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size, InterpolationType::nearest));
+    auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(size, InterpolationType::nearest));
 
-    DatasetAugmentations dataset_augmentations{ {move(training_augs), move(validation_augs), nullptr } };
+    DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
     //Training split is set by default
-    DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
+    DLDataset d(dataset_path, batch_size, dataset_augmentations, ColorType::GRAY);
 
     // Prepare tensors which store batch
     tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
@@ -178,7 +295,7 @@ int main()
         d.ResetAllBatches();
         m_i = 0, b_i = 0;
 
-        auto current_path{ output_path / path("Epoch_" + to_string(i)) };
+        auto current_path{ result_dir / path("Epoch_" + to_string(i)) };
         if (save_images) {
             create_directory(current_path);
         }
@@ -214,11 +331,11 @@ int main()
 
             print_loss(net, j);
             tm.stop();
-            cout << " - Train time: " << tm.getTimeSec() << "\n";
+            cout << "Train time: " << tm.getTimeSec() << "\n";
         }
 
         cout << "Saving weights..." << endl;
-        save(net, "pneumothorax_segnetBN_adam_lr_0.0001_loss_ce_size_512_epoch_" + to_string(i) + ".bin", "bin");
+        save_net_to_onnx_file(net, (checkpoint_dir / path("pneumothorax_model_" + model + "_loss_" + loss + "_lr_" + to_string(lr) + "_size_" + to_string(size[0]) + "_epoch_" + to_string(i) + ".onnx")).string());
 
         cout << "Starting validation:" << endl;
         d.SetSplit(SplitType::validation);
@@ -228,7 +345,7 @@ int main()
 
         // Validation for each batch
         for (int j = 0; j < num_batches_validation; ++j) {
-            cout << "Validation - Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") ";
+            cout << "Validation - Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") " << endl;
 
             // Load a batch
             vector<path> names = PneumothoraxLoadBatch(d, x, y, d.GetSplit(), black_validation, m_i, b_i);
@@ -237,8 +354,9 @@ int main()
             x->div_(255.);
             y->div_(255.);
 
-            forward(net, { x });
-            tensor output = getOutput(out_sigm);
+            evaluate(net, { x }, { y });
+
+            tensor output = getOutput(getOut(net)[0]);
 
             // Compute Dice metric and optionally save the output images
             for (int k = 0, n = 0; k < batch_size; ++k, n += 2) {
@@ -252,7 +370,7 @@ int main()
                 gt_ecvl.colortype_ = ColorType::GRAY;
                 gt_ecvl.channels_ = "xyc";
 
-                cout << "- Dice: " << evaluator.DiceCoefficient(pred_ecvl, gt_ecvl) << " ";
+                cout << "Dice " << names[n].filename() << ": " << evaluator.DiceCoefficient(pred_ecvl, gt_ecvl) << " ";
 
                 if (save_images) {
                     pred->mult_(255.);
@@ -283,11 +401,13 @@ int main()
 
                     ImWrite(current_path / names[n].filename().replace_extension(".png"), orig_img);
                 }
+                cout << endl;
 
                 delete pred;
                 delete gt;
             }
             cout << endl;
+            delete output;
         }
         cout << "----------------------------" << endl;
         cout << "Mean Dice Coefficient: " << evaluator.MeanMetric() << endl;
@@ -301,6 +421,7 @@ int main()
 
     delete x;
     delete y;
+    delete cs;
 
     return EXIT_SUCCESS;
 }

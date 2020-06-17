@@ -1,120 +1,115 @@
-# DH USE CASE Pipeline 
+# DeepHealth 2nd Hackathon 04/06/2020
 
-Pipeline that uses EDDL and ECVL to train a CNN on three different datasets (_MNIST_, _ISIC_ and _PNEUMOTHORAX_), applying different image augmentations, for both the classification and the segmentation task.
+## Improving results on Pneumothorax challenge
 
-## Requirements
-- _C++-17_ compiler (gcc-8 or Visual Studio 2017);
-- CMake;
-- (Optional) ISIC dataset.
-- (Optional) Pneumothorax dataset.
+The best performance is reached using a neural network ensemble of:
 
-### Datasets
-The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](https://drive.google.com/uc?id=1pZotvwM5rltg5OhYGr9oSLVW8yxjs3U_&export=download), [ISIC segmentation](https://drive.google.com/uc?id=1HHmBNiyQ1dH398E3ECl8WqVoZuV23fjM&export=download) and [Pneumothorax segmentation](https://drive.google.com/uc?id=1D1IM9Gw2wWzvnWeX7ac7ZsjetxU8kCit&export=download).
+Trained with EDDL:
+- SegNet baseline model with cross entropy loss - Dice Coefficient: `0.4788` - checkpoint [here](https://drive.google.com/uc?id=17aCogcCyBXBnFnFFIQ8-A8J960Remeop&export=download)
+- Baseline further fine-tuned with the dice loss and reduced learning rate - Dice Coefficient: `0.4819` - checkpoint [here](https://drive.google.com/uc?id=1CN5-R_4jE5Yn6LFyfx8WnnTKNX7mAV85&export=download)
 
+Trained with PyTorch:
+- SegNet model with combo loss (BCE + dice + focal loss) - Dice Coefficient: `0.5179` - checkpoint [here](https://drive.google.com/uc?id=1HhKRiyRMse5y1gjvXnY11moqsdNLAR-B&export=download)
+- UNet model trained with cross entropy loss - Dice Coefficient: `0.4910` - checkpoint [here](https://drive.google.com/uc?id=1eCa4sCIA3sDiAd5sE-EM-u8lm-HUFEfY&export=download)
 
-#### MNIST
-Automatically downloaded and extracted by CMake.
+Ensemble Dice Coefficient: `0.5665`
 
-#### ISIC - [isic-archive.com](https://www.isic-archive.com/#!/topWithHeader/tightContentTop/challenges)
+## Training
 
-_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. Change the dataset path into the `skin_lesion_classification_training.cpp` source file accordingly. To perform only inference, change the dataset path into the `skin_lesion_classification_inference.cpp` source file and download checkpoints [here](https://drive.google.com/file/d/1HzEtAni3WNmpwBBBT6fZ5hkW9wJAgqF2/view?usp=sharing) (best accuracy on validation in 50 epochs).
-
- _Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. Change the dataset path into the `skin_lesion_segmentation_training.cpp` source file accordingly. To perform only inference, change the dataset path into the `skin_lesion_segmentation_inference.cpp` source file and download checkpoints [here](https://drive.google.com/file/d/13lbpkjrHNZygbdkdux8yr7GlpTW0MgxM/view?usp=sharing) (best Mean Intersection over Union on validation in 50 epochs).
-
-#### PNEUMOTHORAX
-Dataset taken from a kaggle challenge (more details [here](https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation)).
-  1. Download training and test images [here](https://www.kaggle.com/seesee/siim-train-test/download).
-  1. Download from [here](https://drive.google.com/uc?id=1e9f0LzPB8euHRJLA5URknUFZHD-8AtE9&export=download) ground truth masks and the YAML dataset file.
-  1. In order to copy the ground truth masks in the directory of the corresponding images, edit the `cpp/copy_ground_truth_pneumothorax.cpp` file with the path to the downloaded dataset and ground truth directory and run it. Move the YAML file in the `siim` dataset folder.
-  
-  Short [video](https://drive.google.com/uc?id=17qlmm9Jf_D3K4iB3Y9pfrpDssFxk2q69&export=download) in which these steps are shown.
-  
-From the 2669 distinct training images with mask, 200 are randomly sampled as validation set.
-- Training set: 3086 total images - 80% with mask and 20% without mask.
-- Validation set: 250 total images - 80% with mask and 20% without mask.
-
-To perform only inference on test set, change the dataset path into the `pneumothorax_segmentation_inference.cpp` source file and download checkpoint [here](https://drive.google.com/uc?id=13-bSsMHxKp7WO_HrdWcy5y9n9hbOXNyT&export=download) for EDDL versions >= 0.4.3 or [here](https://drive.google.com/uc?id=1kLhNpzBi5OYm9y4YNlK_XuUf52WItUVT&export=download) for EDDL versions <= 0.4.2 (best Dice Coefficient on validation in 50 epochs).
-
-
-### CUDA
-On Linux systems, starting from CUDA 10.1, cuBLAS libraries are installed in the `/usr/lib/<arch>-linux-gnu/` or `/usr/lib64/`. Create a symlink to resolve the issue:
+To re-train the networks as we did:
 ```bash
-sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/libcublas.so
+./PNEUMOTHORAX_SEGMENTATION_TRAINING --loss cross_entropy --model SegNetBN --batch_size 2 --learning_rate 0.0001 --dataset_path /path/to/siim/pneumothorax.yml --gpu 1 
+./PNEUMOTHORAX_SEGMENTATION_TRAINING --loss dice --model SegNetBN --batch_size 2 --learning_rate 0.00001 --dataset_path /path/to/siim/pneumothorax.yml --gpu 1 --checkpoint ../checkpoints_pneumothorax/pneumothorax_model_SegNetBN_loss_cross_entropy_lr_0.0001_size_512_epoch_45.onnx
+
+python ../pytorch/pneumothorax/train.py --loss_type Combo --model SegNet --batch_size 6 --scheduler plateau --lr 0.00001 --experiment_name SegNet_combo --dataset_filepath /path/to/siim/pneumothorax.yml --checkpoint_dir /path/where/you/store/checkpoints/
+python ../pytorch/pneumothorax/train.py --loss_type BCE --model PadUNet --batch_size 6 --experiment_name UNet_BCE --dataset_filepath /path/to/siim/pneumothorax.yml --checkpoint_dir /path/where/you/store/checkpoints/
 ```
 
-## Building
+C++ arguments available for PNEUMOTHORAX_SEGMENTATION_TRAINING:
 
-- **\*nix**
-    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs ([video](https://drive.google.com/uc?id=1xGPHIEXK-vzxEF0y8N148EhFud1Ackm4&export=download) in which these steps are performed in a clean nvidia docker image):
-        ```bash
-        sudo apt update
-        sudo apt install wget git make gcc-8 g++-8
+```
+-e, --epochs        Number of training epochs (default: 50)
+-b, --batch_size    Number of images for each batch (default: 2)
+-n, --num_classes   Number of output classes (default: 1)
+-s, --size          Size to which resize the input images (default: 512,512)
+--loss              Loss function (default: cross_entropy)
+-l, --learning_rate Learning rate (default: 0.0001)
+--model             Model of the network (default: SegNetBN)
+-g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
+--lsb               How many batches are processed before synchronizing the model weights (default: 1)
+-m, --mem           GPU memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
+--save_images       Save validation images or not (default: false)
+-r, --result_dir    Directory where the output images will be stored (default: ../output_images_pneumothorax)
+--checkpoint_dir    Directory where the checkpoints will be stored (default: ../checkpoints_pneumothorax)
+-d, --dataset_path  Dataset path (mandatory)
+-c, --checkpoint    Path to the onnx checkpoint file (optional)
+-h, --help          Print usage
+```
 
-        # cmake version >= 3.13 is required for ECVL
-        wget https://cmake.org/files/v3.13/cmake-3.13.5-Linux-x86_64.tar.gz
-        tar -xf cmake-3.13.5-Linux-x86_64.tar.gz
+Python arguments available for train.py:
 
-        # symbolic link for cmake
-        sudo ln -s /<path/to>/cmake-3.13.5-Linux-x86_64/bin/cmake /usr/bin/cmake
-        # symbolic link for cublas if we have cuda >= 10.1
-        sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/libcublas.so
+```
+--num_epochs            Number of training epochs (default: 100)
+--batch_size            Number of images for each batch (default: 2)
+--num_classes           Number of output classes (default: 1)
+--resize_dims           Size to which resize the input images (default: 512)
+--loss_type             Loss function (default: BCE, other possibilities: Focal, Combo, Dice)
+--lr                    Learning rate (default: 0.0001)
+--scheduler             Scheduler used (default: None, possibilities: plateau)
+--model                 Model of the network (default: SegNet, other possibilities: PadUNet)
+--experiment_name       Name of the experiment (default: exp1)
+--checkpoint_dir        Directory where the checkpoints will be stored (default: None)
+--dataset_filepath      Dataset path (default: None, mandatory)
+--data_loader_workers   num_workers of Dataloader (default: 8)
+--checkpoint_file       Path to the onnx checkpoint file (default: None, optional)
+```
 
-        # if other versions of gcc (e.g., gcc-7) are present, set a higher priority to gcc-8 so that it is chosen as the default
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+## Inference
 
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+C++ arguments available for PNEUMOTHORAX_SEGMENTATION_INFERENCE:
 
-        # install dependencies as sudo so that they will be installed in "standard" system directories
-        chmod +x install_dependencies.sh
-        sudo ./install_dependencies.sh
+```
+-b, --batch_size    Number of images for each batch (default: 2)
+-n, --num_classes   Number of output classes (default: 1)
+-g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
+--lsb               How many batches are processed before synchronizing the model weights (default: 1)
+-m, --mem           GPU memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
+--save_images       Save validation images or not (default: false)
+--save_gt           Save validation ground truth or not (default: false)
+-r, --result_dir    Directory where the output images will be stored (default: ../output_images_pneumothorax)
+-t, --gt_dir        Directory where the ground_truth images will be stored (default: ../ground_truth_images_pneumothorax)
+-d, --dataset_path  Dataset path (mandatory)
+-c, --checkpoint    Path to the onnx checkpoint file (optional)
+-h, --help          Print usage
+```
 
-        # install EDDL, OpenCV, ECVL and build the pipeline
-        chmod +x build_pipeline.sh
-        ./build_pipeline.sh
-        ```
+C++ arguments available for ENSEMBLE:
 
-    - Building with all the dependencies already installed:
-        ```bash
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
-        mkdir build && cd build
+```
+-s, --segnet_ce     Folder with output images from the baseline
+-d, --segnet_dice   Folder with output images from SegNetBN with dice loss
+-c, --segnet_combo  Folder with output images from SegNetBN with combo loss
+-u, --unet          Folder with output images from the UNet with BCE
+-g, --ground_truth  Folder with ground_truth images (mandatory)
+-h, --help          Print usage
+```
 
-        # if ECVL is not installed in a "standard" system directory (like /usr/local/) you have to provide the installation directory
-        cmake -Decvl_DIR=/<path/to>/ecvl/build/install ..
-        make
-        ```
-    
-- **Windows**
-    - Building assuming `cmake >= 3.13`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
-        ```bash
-        # install EDDL and all its dependencies, OpenCV, ECVL and build the pipeline
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
-        build_pipeline.bat
-        ```
-    
-**N.B.** EDDL is built for GPU by default.
-    
-## Training and inference
+The outputs on the validation images must be saved for each of the four networks. 
+```bash
+./PNEUMOTHORAX_SEGMENTATION_INFERENCE --dataset_path /path/to/siim/pneumothorax.yml --checkpoint /path/to/pneumothorax_model_SegNetBN_loss_ce_lr_0.0001_size_512_epoch_45.onnx --save_images --result_dir ../output_images_SegNetBN_loss_ce_lr_0.0001 --save_gt --gpu 1
+./PNEUMOTHORAX_SEGMENTATION_INFERENCE --dataset_path /path/to/siim/pneumothorax.yml --checkpoint /path/to/pneumothorax_model_SegNetBN_loss_dice_lr_0.00001_size_512_epoch_64.onnx --save_images --result_dir ../output_images_SegNetBN_loss_dice_lr_0.00001 --gpu 1
+./PNEUMOTHORAX_SEGMENTATION_INFERENCE --dataset_path /path/to/siim/pneumothorax.yml --checkpoint /path/to/pneumothorax_model_SegNet_loss_Combo_lr_0.00001_size_512.onnx --save_images --result_dir ../output_images_SegNetBN_loss_combo_lr_0.00001_plateau --gpu 1
+./PNEUMOTHORAX_SEGMENTATION_INFERENCE --dataset_path /path/to/siim/pneumothorax.yml --checkpoint /path/to/pneumothorax_model_UNet_loss_BCE_lr_0.0001_size_512.onnx --save_images --result_dir ../output_images_UNetBN_loss_BCE --gpu 1
+```
+Note that at least once (in the first execution in this example) you have to save also the ground_truth images with `--save_gt` in order to have them all in one folder.
 
-- The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
-    1. MNIST_BATCH and SKIN_LESION_CLASSIFICATION_TRAINING train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
-    1. SKIN_LESION_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
-    1. PNEUMOTHORAX_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
-    1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process.
+Now, you can run the ensemble of all the networks:
+```bash
+./ENSEMBLE --ground_truth ../ground_truth_images_pneumothorax --segnet_ce ../output_images_SegNetBN_loss_ce_lr_0.0001 --segnet_dice ../output_images_SegNetBN_loss_dice_lr_0.00001 --segnet_combo ../output_images_SegNetBN_loss_combo_lr_0.00001_plateau --unet ../output_images_UNetBN_loss_BCE
+```
 
-- Examples of output for the pre-trained models provided:
-    1. *ISIC segmentation test set*:
-
-       The red line represents the prediction processed by ECVL to obtain contours that are overlaid on the original image.
-
-        ![](/imgs/isic_1.png)  |  ![](/imgs/isic_2.png)  |  ![](/imgs/isic_3.png) 
-        :----------------------|-------------------------|----------------------:
-    1. *Pneumothorax segmentation validation set*:
-
-       The red area represents the prediction, the green area the ground truth. The yellow area therefore represents the correctly predicted pixels.
-
-       ![](/imgs/pneumothorax_1.png) | ![](/imgs/pneumothorax_2.png) | ![](/imgs/pneumothorax_3.png)
-       :----------------------------:|:-----------------------------:|:----------------------------:
+Four metrics will be calculated:
+- Mean dice coefficient 
+- Mean dice coefficient with post processing with triplet (0.5, 300, 0.3) (see [this](https://github.com/sneddy/pneumothorax-segmentation#triplet-scheme-of-inference-and-validation) for more details)
+- Mean dice coefficient with images that are binarized before building the ensembled image  
+- Mean dice coefficient with images that are binarized before building the ensembled image and with post processing

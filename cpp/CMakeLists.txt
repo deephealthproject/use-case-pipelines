@@ -22,3 +22,6 @@ target_sources(PNEUMOTHORAX_SEGMENTATION_INFERENCE PRIVATE
 target_sources(COPY_GROUND_TRUTH_PNEUMOTHORAX PRIVATE
         copy_ground_truth_pneumothorax.cpp
 )
+target_sources(ENSEMBLE PRIVATE
+        ensemble.cpp
+)
