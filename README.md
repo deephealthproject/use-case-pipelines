@@ -5,14 +5,22 @@
 The best performance is reached using a neural network ensemble of:
 
 Trained with EDDL:
-- SegNet baseline model with cross entropy loss - Dice Coefficient: `0.4788` - checkpoint [here](https://drive.google.com/uc?id=17aCogcCyBXBnFnFFIQ8-A8J960Remeop&export=download)
-- Baseline further fine-tuned with the dice loss and reduced learning rate - Dice Coefficient: `0.4819` - checkpoint [here](https://drive.google.com/uc?id=1CN5-R_4jE5Yn6LFyfx8WnnTKNX7mAV85&export=download)
+- SegNet baseline model with cross entropy loss - Dice Coefficient: `0.4788` - ONNX model and checkpoint [here](https://drive.google.com/uc?id=17aCogcCyBXBnFnFFIQ8-A8J960Remeop&export=download)
+- Baseline further fine-tuned with the dice loss and reduced learning rate - Dice Coefficient: `0.4819` - ONNX model and checkpoint [here](https://drive.google.com/uc?id=1CN5-R_4jE5Yn6LFyfx8WnnTKNX7mAV85&export=download)
 
 Trained with PyTorch:
-- SegNet model with combo loss (BCE + dice + focal loss) - Dice Coefficient: `0.5179` - checkpoint [here](https://drive.google.com/uc?id=1HhKRiyRMse5y1gjvXnY11moqsdNLAR-B&export=download)
-- UNet model trained with cross entropy loss - Dice Coefficient: `0.4910` - checkpoint [here](https://drive.google.com/uc?id=1eCa4sCIA3sDiAd5sE-EM-u8lm-HUFEfY&export=download)
+- SegNet model with combo loss (BCE + dice + focal loss) - Dice Coefficient: `0.5179` - ONNX model and checkpoint [here](https://drive.google.com/uc?id=1HhKRiyRMse5y1gjvXnY11moqsdNLAR-B&export=download)
+- UNet model trained with cross entropy loss - Dice Coefficient: `0.4910` - ONNX model and checkpoint [here](https://drive.google.com/uc?id=1eCa4sCIA3sDiAd5sE-EM-u8lm-HUFEfY&export=download)
 
 Ensemble Dice Coefficient: `0.5665`
+
+## Building
+Follow the instructions in the master branch to clone and build the pipeline. Then run:
+```
+git checkout 2nd_hackathon
+cd build
+make
+```
 
 ## Training
 
@@ -23,6 +31,12 @@ To re-train the networks as we did:
 
 python ../pytorch/pneumothorax/train.py --loss_type Combo --model SegNet --batch_size 6 --scheduler plateau --lr 0.00001 --experiment_name SegNet_combo --dataset_filepath /path/to/siim/pneumothorax.yml --checkpoint_dir /path/where/you/store/checkpoints/
 python ../pytorch/pneumothorax/train.py --loss_type BCE --model PadUNet --batch_size 6 --experiment_name UNet_BCE --dataset_filepath /path/to/siim/pneumothorax.yml --checkpoint_dir /path/where/you/store/checkpoints/
+```
+
+To import ONNX files saved with PyTorch into EDDL we used this [ONNX simplifier](https://github.com/daquexian/onnx-simplifier), which can be easily installed and run with:
+```bash
+pip3 install onnx-simplifier
+python -m onnxsim input_onnx_model output_onnx_model
 ```
 
 C++ arguments available for PNEUMOTHORAX_SEGMENTATION_TRAINING:
