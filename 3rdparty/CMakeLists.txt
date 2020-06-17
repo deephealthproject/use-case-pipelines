@@ -11,6 +11,7 @@ macro(pipeline_update_3rdparty SUBMODULE)
     endif()
 endmacro()
 
+find_package(Git QUIET)
 pipeline_update_3rdparty(cxxopts)
 
 set(CXXOPTS_BUILD_EXAMPLES OFF CACHE INTERNAL "" FORCE)
