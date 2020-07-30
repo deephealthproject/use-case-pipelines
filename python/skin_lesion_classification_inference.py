@@ -20,9 +20,6 @@
 
 """\
 Skin lesion classification inference example.
-
-More information and checkpoints available at
-https://github.com/deephealthproject/use_case_pipeline
 """
 
 import argparse
@@ -31,7 +28,7 @@ import numpy as np
 import os
 import pyecvl.ecvl as ecvl
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 
 from models import VGG16
 
@@ -68,8 +65,8 @@ def main(args):
         for c in d.classes_:
             os.makedirs(os.path.join(args.out_dir, c), exist_ok=True)
 
-    x = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
-    y = eddlT.create([args.batch_size, len(d.classes_)])
+    x = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
+    y = Tensor([args.batch_size, len(d.classes_)])
 
     d.SetSplit(ecvl.SplitType.test)
     num_samples = len(d.GetSplit())
@@ -88,11 +85,11 @@ def main(args):
         d.LoadBatch(x, y)
         x.div_(255.0)
         eddl.forward(net, [x])
-        output = eddl.getTensor(out)
+        output = eddl.getOutput(out)
         sum_ = 0.0
         for j in range(args.batch_size):
-            result = eddlT.select(output, j)
-            target = eddlT.select(y, j)
+            result = output.select([str(j)])
+            target = y.select([str(j)])
             ca = metric.value(target, result)
             total_metric.append(ca)
             sum_ += ca
@@ -101,7 +98,7 @@ def main(args):
                 target_a = np.array(target, copy=False)
                 classe = np.argmax(result_a).item()
                 gt_class = np.argmax(target_a).item()
-                single_image = eddlT.select(x, j)
+                single_image = x.select([str(j)])
                 img_t = ecvl.TensorToView(single_image)
                 img_t.colortype_ = ecvl.ColorType.BGR
                 single_image.mult_(255.)
