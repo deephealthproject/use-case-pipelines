@@ -21,16 +21,13 @@
 
 """\
 Pneumothorax segmentation inference example.
-
-More information and checkpoints available at
-https://github.com/deephealthproject/use_case_pipeline
 """
 
 import argparse
 import os
 
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 import pyecvl.ecvl as ecvl
 
 import utils
@@ -74,7 +71,7 @@ def main(args):
     print("Reading dataset")
     d = ecvl.DLDataset(args.in_ds, args.batch_size, dataset_augs,
                        ecvl.ColorType.GRAY)
-    x = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
+    x = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
     print("Testing")
     d.SetSplit(ecvl.SplitType.test)
     num_samples_test = len(d.GetSplit())
@@ -90,9 +87,9 @@ def main(args):
         x.div_(255.0)
         eddl.forward(net, [x])
         if args.out_dir:
-            output = eddl.getTensor(out_sigm)
+            output = eddl.getOutput(out_sigm)
             for k in range(args.batch_size):
-                img = eddlT.select(output, k)
+                img = output.select([str(k)])
                 img_I = ecvl.TensorToImage(img)
                 img_I.colortype_ = ecvl.ColorType.GRAY
                 img_I.channels_ = "xyc"

@@ -20,9 +20,6 @@
 
 """\
 Skin lesion classification training example.
-
-More information and checkpoints available at
-https://github.com/deephealthproject/use_case_pipeline
 """
 
 import argparse
@@ -31,7 +28,7 @@ import os
 import numpy as np
 import pyecvl.ecvl as ecvl
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 import random
 
 from models import VGG16
@@ -73,8 +70,8 @@ def main(args):
 
     print("Reading dataset")
     d = ecvl.DLDataset(args.in_ds, args.batch_size, dataset_augs)
-    x = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
-    y = eddlT.create([args.batch_size, len(d.classes_)])
+    x = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
+    y = Tensor([args.batch_size, len(d.classes_)])
     num_samples_train = len(d.GetSplit())
     num_batches_train = num_samples_train // args.batch_size
     d.SetSplit(ecvl.SplitType.validation)
@@ -125,11 +122,11 @@ def main(args):
             d.LoadBatch(x, y)
             x.div_(255.0)
             eddl.forward(net, [x])
-            output = eddl.getTensor(out)
+            output = eddl.getOutput(out)
             sum_ = 0.0
             for k in range(args.batch_size):
-                result = eddlT.select(output, k)
-                target = eddlT.select(y, k)
+                result = output.select([str(k)])
+                target = y.select([str(k)])
                 ca = metric.value(target, result)
                 total_metric.append(ca)
                 sum_ += ca
@@ -138,7 +135,7 @@ def main(args):
                     target_a = np.array(target, copy=False)
                     classe = np.argmax(result_a).item()
                     gt_class = np.argmax(target_a).item()
-                    single_image = eddlT.select(x, k)
+                    single_image = x.select([str(k)])
                     img_t = ecvl.TensorToView(single_image)
                     img_t.colortype_ = ecvl.ColorType.BGR
                     single_image.mult_(255.)

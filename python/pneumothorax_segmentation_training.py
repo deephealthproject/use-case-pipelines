@@ -21,9 +21,6 @@
 
 """\
 Pneumothorax segmentation training example.
-
-More information and checkpoints available at
-https://github.com/deephealthproject/use_case_pipeline
 """
 
 import argparse
@@ -33,7 +30,7 @@ import random
 
 import numpy as np
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 import pyecvl.ecvl as ecvl
 
 import utils
@@ -161,8 +158,8 @@ def main(args):
     d = ecvl.DLDataset(args.in_ds, args.batch_size, dataset_augs,
                        ecvl.ColorType.GRAY)
     # Prepare tensors which store batch
-    x = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
-    y = eddlT.create([args.batch_size, d.n_channels_gt_, size[0], size[1]])
+    x = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
+    y = Tensor([args.batch_size, d.n_channels_gt_, size[0], size[1]])
 
     # Retrieve indices of images with a black ground truth
     # which are not include in a split
@@ -237,12 +234,12 @@ def main(args):
             x.div_(255.0)
             y.div_(255.0)
             eddl.forward(net, [x])
-            output = eddl.getTensor(out_sigm)
+            output = eddl.getOutput(out_sigm)
 
             # Compute Dice metric and optionally save the output images
             for k in range(args.batch_size):
-                pred = eddlT.select(output, k)
-                gt = eddlT.select(y, k)
+                pred = output.select([str(k)])
+                gt = y.select([str(k)])
                 pred_np = np.array(pred, copy=False)
                 gt_np = np.array(gt, copy=False)
                 # DiceCoefficient modifies image as a side effect

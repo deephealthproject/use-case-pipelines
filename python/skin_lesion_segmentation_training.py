@@ -20,9 +20,6 @@
 
 """\
 Skin lesion segmentation training example.
-
-More information and checkpoints available at
-https://github.com/deephealthproject/use_case_pipeline
 """
 
 import argparse
@@ -31,7 +28,7 @@ import numpy as np
 import os
 import pyecvl.ecvl as ecvl
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 import random
 
 import utils
@@ -79,8 +76,8 @@ def main(args):
 
     print("Reading dataset")
     d = ecvl.DLDataset(args.in_ds, args.batch_size, dataset_augs)
-    x = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
-    y = eddlT.create([args.batch_size, d.n_channels_gt_, size[0], size[1]])
+    x = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
+    y = Tensor([args.batch_size, d.n_channels_gt_, size[0], size[1]])
     num_samples_train = len(d.GetSplit())
     num_batches_train = num_samples_train // args.batch_size
     d.SetSplit(ecvl.SplitType.validation)
@@ -126,10 +123,10 @@ def main(args):
             x.div_(255.0)
             y.div_(255.0)
             eddl.forward(net, [x])
-            output = eddl.getTensor(out_sigm)
+            output = eddl.getOutput(out_sigm)
             for k in range(args.batch_size):
-                img = eddlT.select(output, k)
-                gt = eddlT.select(y, k)
+                img = output.select([str(k)])
+                gt = y.select([str(k)])
                 img_np = np.array(img, copy=False)
                 gt_np = np.array(gt, copy=False)
                 iou = evaluator.BinaryIoU(img_np, gt_np, thresh=thresh)
@@ -143,7 +140,7 @@ def main(args):
                     img_t.channels_ = "xyc"
                     img.mult_(255.)
                     # orig_img
-                    orig_img = eddlT.select(x, k)
+                    orig_img = x.select([str(k)])
                     orig_img.mult_(255.)
                     orig_img_t = ecvl.TensorToImage(orig_img)
                     orig_img_t.colortype_ = ecvl.ColorType.BGR
