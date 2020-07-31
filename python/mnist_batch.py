@@ -28,7 +28,7 @@ import sys
 
 import pyecvl.ecvl as ecvl
 import pyeddl.eddl as eddl
-import pyeddl.eddlT as eddlT
+from pyeddl.tensor import Tensor
 from models import LeNet
 
 
@@ -60,8 +60,8 @@ def main(args):
 
     print("Reading dataset")
     d = ecvl.DLDataset(args.in_ds, args.batch_size, dataset_augs, ctype)
-    x_train = eddlT.create([args.batch_size, d.n_channels_, size[0], size[1]])
-    y_train = eddlT.create([args.batch_size, len(d.classes_)])
+    x_train = Tensor([args.batch_size, d.n_channels_, size[0], size[1]])
+    y_train = Tensor([args.batch_size, len(d.classes_)])
     num_samples = len(d.GetSplit())
     num_batches = num_samples // args.batch_size
     indices = list(range(args.batch_size))
