@@ -13,7 +13,7 @@ mkdir -p $DEPENDENCIES_DIR && cd $DEPENDENCIES_DIR
 ############ EDDL
 git clone --recurse-submodule https://github.com/deephealthproject/eddl.git 
 cd eddl
-#git checkout tags/0.6.0
+git checkout tags/0.7.0
 mkdir -p build && cd build
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
