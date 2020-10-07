@@ -3,8 +3,8 @@
 Pipeline that uses EDDL and ECVL to train a CNN on three different datasets (_MNIST_, _ISIC_ and _PNEUMOTHORAX_), applying different image augmentations, for both the classification and the segmentation task.
 
 ## Requirements
-- _C++-17_ compiler (gcc-8 or Visual Studio 2017);
-- CMake;
+- CMake 3.13 or later
+- C++ Compiler with C++17 support (e.g. GCC 6 or later, Clang 5.0 or later, Visual Studio 2017 or later)
 - (Optional) ISIC dataset.
 - (Optional) Pneumothorax dataset.
 

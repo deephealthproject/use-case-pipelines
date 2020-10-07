@@ -2,15 +2,16 @@
 #include "models/models.h"
 
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <random>
 
+#include "ecvl/core/filesystem.h"
+
 using namespace ecvl;
+using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
-using namespace std::filesystem;
 
 // Custom LoadBatch for pneumothorax specific problem.
 vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
