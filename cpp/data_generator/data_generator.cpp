@@ -87,7 +87,13 @@ void DataGenerator::ThreadProducer()
 
         // creating new tensors for every batch can generate overload, let us check now this in the future
         tensor x = new Tensor({ batch_size_, source_->n_channels_, input_shape_[0], input_shape_[1] });
-        tensor y = new Tensor({ batch_size_, vsize(source_->classes_) });
+        tensor y;
+        if(source_->classes_.empty()) {
+            y = new Tensor({ batch_size_, source_->n_channels_gt_, output_shape_[0], output_shape_[1] });
+        }
+        else {
+            y = new Tensor({ batch_size_, vsize(source_->classes_) });
+        }
 
         // Load a batch
         source_->LoadBatch(x, y);
