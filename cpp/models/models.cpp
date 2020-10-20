@@ -161,6 +161,7 @@ layer SegNet(layer x, const int& num_classes)
     x = UpSampling(x, { 2,2 });
     x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
     x = Conv(x, num_classes, { 3,3 }, { 1,1 }, "same");
+    x = Sigmoid(x);
 
     return x;
 }
@@ -204,6 +205,7 @@ layer SegNetBN(layer x, const int& num_classes)
     x = UpSampling(x, { 2,2 });
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = Conv(x, num_classes, { 3,3 }, { 1,1 }, "same");
+    x = Sigmoid(x);
 
     return x;
 }
@@ -250,6 +252,7 @@ layer UNetWithPadding(layer x, const int& num_classes)
     x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
     x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
     x = Conv(x, num_classes, { 1,1 });
+    x = Sigmoid(x);
 
     return x;
 }
@@ -296,6 +299,7 @@ layer UNetWithPaddingBN(layer x, const int& num_classes)
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = Conv(x, num_classes, { 1,1 });
+    x = Sigmoid(x);
 
     return x;
 }
