@@ -89,7 +89,7 @@ void DataGenerator::ThreadProducer()
         tensor x = new Tensor({ batch_size_, source_->n_channels_, input_shape_[0], input_shape_[1] });
         tensor y;
         if(source_->classes_.empty()) {
-            y = new Tensor({ batch_size_, source_->n_channels_gt_, output_shape_[0], output_shape_[1] });
+            y = new Tensor({ batch_size_, source_->n_channels_gt_, input_shape_[0], input_shape_[1] });
         }
         else {
             y = new Tensor({ batch_size_, vsize(source_->classes_) });
@@ -120,7 +120,7 @@ void DataGenerator::ThreadProducer()
         }
     }
 
-    if (my_cache.size() > 0) {
+    if (!my_cache.empty()) {
         { // critical region starts
             std::unique_lock<std::mutex> lck(mutex_fifo_);
             while (!my_cache.empty()) {
@@ -134,7 +134,7 @@ void DataGenerator::ThreadProducer()
 
 bool DataGenerator::HasNext()
 {
-    return batch_index_ < num_batches_ || fifo_.size() > 0;
+    return batch_index_ < num_batches_ || !fifo_.empty();
 }
 
 size_t DataGenerator::Size()
@@ -144,7 +144,7 @@ size_t DataGenerator::Size()
 
 bool DataGenerator::PopBatch(tensor& x, tensor& y)
 {
-    TensorPair* _temp = nullptr;
+    TensorPair* _temp;
     { // critical region begins
         std::unique_lock<std::mutex> lck(mutex_fifo_);
 
