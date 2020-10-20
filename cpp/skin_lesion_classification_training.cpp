@@ -1,5 +1,6 @@
 #include "data_generator/data_generator.h"
 #include "models/models.h"
+#include "utils/utils.h"
 
 #include <algorithm>
 #include <fstream>
@@ -7,6 +8,7 @@
 #include <random>
 
 #include "ecvl/core/filesystem.h"
+#include "eddl/serialization/onnx/eddl_onnx.h"
 
 using namespace ecvl;
 using namespace ecvl::filesystem;
@@ -16,132 +18,81 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Settings
-    int epochs = 50;
-    int batch_size = 12;
-    int num_classes = 8;
-    std::vector<int> size{ 224,224 }; // Size of images
-
-    vector<int> gpus = { 1 };
-    int lsb = 1;
-    string mem = "low_mem";
-    string checkpoint = "";
-
-    for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--low-mem")) {
-            mem = "low_mem";
-        }
-        else if (!strcmp(argv[i], "--mid-mem")) {
-            mem = "mid_mem";
-        }
-        else if (!strcmp(argv[i], "--full-mem")) {
-            mem = "full_mem";
-        }
-        else if (!strcmp(argv[i], "--lsb")) {
-            lsb = atoi(argv[++i]);
-        }
-        else if (!strcmp(argv[i], "--batch-size")) {
-            batch_size = atoi(argv[++i]);
-        }
-        else if (!strcmp(argv[i], "--gpus-2")) {
-            gpus = { 1,1 };
-        }
-        else if (!strcmp(argv[i], "--gpus-1")) {
-            gpus = { 1 };
-        }
-        else if (!strcmp(argv[i], "--checkpoint")) {
-            checkpoint = argv[++i];
-        }
+    Settings s;
+    if(!TrainingOptions(argc, argv, s)) {
+        return EXIT_FAILURE;
     }
-
-    std::mt19937 g(std::random_device{}());
-
-    // Define network
-    layer in = Input({ 3, size[0],  size[1] });
-    layer out = VGG16(in, num_classes);
-    model net = Model({ in }, { out });
 
     // Build model
-    build(net,
-        sgd(0.001f, 0.9f), // Optimizer
-        { "soft_cross_entropy" }, // Losses
-        { "categorical_accuracy" }, // Metrics
-        CS_GPU(gpus, lsb, mem) // Computing Service
+    build(s.net,
+          sgd(s.lr, s.momentum),      // Optimizer
+          { s.loss },                 // Loss
+          { "categorical_accuracy" }, // Metric
+          s.cs,                       // Computing Service
+          s.random_weights            // Randomly initialize network weights
     );
 
-    if (!checkpoint.empty()) {
-        load(net, checkpoint, "bin");
-    }
-
     // View model
-    summary(net);
-    plot(net, "model.pdf");
-    setlogfile(net, "skin_lesion_classification");
+    summary(s.net);
+    plot(s.net, "model.pdf");
+    setlogfile(s.net, "skin_lesion_classification");
 
-    auto training_augs = make_unique<SequentialAugmentationContainer>(
-        AugResizeDim(size),
-        AugMirror(.5),
-        AugFlip(.5),
-        AugRotate({ -180, 180 }),
-        AugAdditivePoissonNoise({ 0, 10 }),
-        AugGammaContrast({ .5,1.5 }),
-        AugGaussianBlur({ .0,.8 }),
-        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+    auto training_augs = make_shared<SequentialAugmentationContainer>(
+            AugResizeDim(s.size),
+            AugMirror(.5),
+            AugFlip(.5),
+            AugRotate({ -180, 180 }),
+            AugAdditivePoissonNoise({ 0, 10 }),
+            AugGammaContrast({ .5, 1.5 }),
+            AugGaussianBlur({ .0, .8 }),
+            AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
 
-    auto validation_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
+    auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
-    DatasetAugmentations dataset_augmentations{ {move(training_augs), move(validation_augs), nullptr } };
+    DatasetAugmentations dataset_augmentations{{ training_augs, validation_augs, nullptr }};
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations);
     // Create producer thread with 'DLDataset d' and 'std::queue q'
     int num_samples = vsize(d.GetSplit());
-    int num_batches = num_samples / batch_size;
-    DataGenerator d_generator_t(&d, batch_size, size, { vsize(d.classes_) }, 3);
+    int num_batches = num_samples / s.batch_size;
+    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
 
     d.SetSplit(SplitType::validation);
     int num_samples_validation = vsize(d.GetSplit());
-    int num_batches_validation = num_samples_validation / batch_size;
-    DataGenerator d_generator_v(&d, batch_size, size, { vsize(d.classes_) }, 2);
+    int num_batches_validation = num_samples_validation / s.batch_size;
+    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
 
     tensor output, target, result, single_image;
-    float sum = 0., ca = 0.;
+    float sum = 0., ca = 0., best_metric = 0., mean_metric;
 
     vector<float> total_metric;
     Metric* m = getMetric("categorical_accuracy");
-
-    bool save_images = true;
-    path output_path;
-    if (save_images) {
-        output_path = "../output_images";
-        create_directory(output_path);
-    }
     View<DataType::float32> img_t;
-
-    float total_avg;
     ofstream of;
+    mt19937 g(random_device{}());
 
-    vector<int> indices(batch_size);
+    vector<int> indices(s.batch_size);
     iota(indices.begin(), indices.end(), 0);
     cv::TickMeter tm;
     cv::TickMeter tm_epoch;
 
     cout << "Starting training" << endl;
-    for (int i = 0; i < epochs; ++i) {
-
+    for (int i = 0; i < s.epochs; ++i) {
         tm_epoch.reset();
         tm_epoch.start();
 
-        auto current_path{ output_path / path("Epoch_" + to_string(i)) };
-        if (save_images) {
-            for (int c = 0; c < d.classes_.size(); ++c) {
-                create_directories(current_path / path(d.classes_[c]));
+        auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
+        if (s.save_images) {
+            for (const auto &c : d.classes_) {
+                create_directories(current_path / path(c));
             }
         }
 
         d.SetSplit(SplitType::training);
         // Reset errors
-        reset_loss(net);
+        reset_loss(s.net);
         total_metric.clear();
 
         // Shuffle training list
@@ -154,7 +105,7 @@ int main(int argc, char* argv[])
         for (int j = 0; d_generator_t.HasNext() /* j < num_batches */; ++j) {
             tm.reset();
             tm.start();
-            cout << "Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches << ") - ";
+            cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
             cout << "|fifo| " << d_generator_t.Size() << " - ";
 
             tensor x, y;
@@ -165,10 +116,10 @@ int main(int argc, char* argv[])
                 x->div_(255.0);
 
                 // Train batch
-                train_batch(net, { x }, { y }, indices);
+                train_batch(s.net, { x }, { y }, indices);
 
                 // Print errors
-                print_loss(net, j);
+                print_loss(s.net, j);
 
                 delete x;
                 delete y;
@@ -182,17 +133,14 @@ int main(int argc, char* argv[])
         tm_epoch.stop();
         cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
 
-        cout << "Saving weights..." << endl;
-        save(net, "isic_classification_checkpoint_epoch_" + to_string(i) + ".bin", "bin");
-
-        // Evaluation
+        // Validation
         d.SetSplit(SplitType::validation);
-
         d_generator_v.Start();
 
-        cout << "Evaluate:" << endl;
+        cout << "Starting validation:" << endl;
         for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
-            cout << "Validation: Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") - ";
+            cout << "Validation: Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
+                 << ") - ";
 
             tensor x, y;
 
@@ -202,11 +150,11 @@ int main(int argc, char* argv[])
                 x->div_(255.0);
 
                 // Evaluate batch
-                forward(net, { x });
-                output = getOutput(out);
+                forward(s.net, { x });
+                output = getOutput(getOut(s.net)[0]);
 
                 sum = 0.;
-                for (int k = 0; k < batch_size; ++k, ++n) {
+                for (int k = 0; k < s.batch_size; ++k, ++n) {
                     result = output->select({ to_string(k) });
                     target = y->select({ to_string(k) });
 
@@ -215,18 +163,18 @@ int main(int argc, char* argv[])
                     total_metric.push_back(ca);
                     sum += ca;
 
-                    if (save_images) {
+                    if (s.save_images) {
                         float max = std::numeric_limits<float>::min();
                         int classe = -1;
                         int gt_class = -1;
-                        for (int i = 0; i < result->size; ++i) {
-                            if (result->ptr[i] > max) {
-                                max = result->ptr[i];
-                                classe = i;
+                        for (int c = 0; c < result->size; ++c) {
+                            if (result->ptr[c] > max) {
+                                max = result->ptr[c];
+                                classe = c;
                             }
 
-                            if (target->ptr[i] == 1.) {
-                                gt_class = i;
+                            if (target->ptr[c] == 1.) {
+                                gt_class = c;
                             }
                         }
 
@@ -237,15 +185,16 @@ int main(int argc, char* argv[])
 
                         path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
 
-                        path cur_path = current_path / d.classes_[classe] / filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
+                        path cur_path = current_path / d.classes_[classe] /
+                                        filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
                         ImWrite(cur_path, img_t);
+                        delete single_image;
                     }
 
                     delete result;
                     delete target;
-                    delete single_image;
                 }
-                cout << " categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
+                cout << " categorical_accuracy: " << static_cast<float>(sum) / s.batch_size << endl;
 
                 delete x;
                 delete y;
@@ -254,11 +203,17 @@ int main(int argc, char* argv[])
 
         d_generator_v.Stop();
 
-        total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
-        cout << "Validation categorical accuracy: " << total_avg << endl;
+        mean_metric = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
+        cout << "Validation categorical accuracy: " << mean_metric << endl;
 
-        of.open("output_evaluate_classification.txt", ios::out | ios::app);
-        of << "Epoch " << i << " - Total categorical accuracy: " << total_avg << endl;
+        if (mean_metric > best_metric) {
+            cout << "Saving weights..." << endl;
+            save_net_to_onnx_file(s.net, s.checkpoint_dir / path("isic_classification_checkpoint_epoch_" + to_string(i) + ".onnx"));
+            best_metric = mean_metric;
+        }
+
+        of.open("output_evaluate_isic_classification.txt", ios::out | ios::app);
+        of << "Epoch " << i << " - Total categorical accuracy: " << mean_metric << endl;
         of.close();
     }
 
