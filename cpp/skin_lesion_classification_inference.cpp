@@ -1,3 +1,4 @@
+#include "data_generator/data_generator.h"
 #include "models/models.h"
 
 #include <algorithm>
@@ -6,6 +7,7 @@
 #include <random>
 
 #include "ecvl/core/filesystem.h"
+#include "eddl/serialization/onnx/eddl_onnx.h"
 
 using namespace ecvl;
 using namespace ecvl::filesystem;
@@ -15,131 +17,129 @@ using namespace std;
 int main()
 {
     // Settings
-    int batch_size = 12;
-    int num_classes = 8;
-    std::vector<int> size{ 224, 224 }; // Size of images
-
+    int batch_size = 50;
     bool save_images = true;
-    path output_path;
+    path result_dir;
 
     // Define network
-    layer in = Input({ 3, size[0],  size[1] });
-    layer out = VGG16(in, num_classes);
-    model net = Model({ in }, { out });
+    model net = import_net_from_onnx_file("isic_classification_checkpoint_epoch_46.onnx");
 
     // Build model
     build(net,
-        sgd(0.001f, 0.9f), // Optimizer
-        { "soft_cross_entropy" }, // Losses
-        { "categorical_accuracy" } // Metrics
+          sgd(0.001f, 0.9f),          // Optimizer
+          { "soft_cross_entropy" },   // Losses
+          { "categorical_accuracy" }, // Metrics
+          CS_GPU({1}, 1, "low_mem"),  // Computing Service
+          false                       // Randomly initialize network weights
     );
-
-    toGPU(net);
 
     // View model
     summary(net);
     plot(net, "model.pdf");
     setlogfile(net, "skin_lesion_classification_inference");
 
-    auto training_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
-    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
-    DatasetAugmentations dataset_augmentations{ {move(training_augs), nullptr, move(test_augs)} };
+    // Set size from the size of the input layer of the network
+    std::vector<int> size{ net->layers[0]->input->shape[2], net->layers[0]->input->shape[3] };
+
+    auto test_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(size));
+    DatasetAugmentations dataset_augmentations{ { nullptr, nullptr, test_augs } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, move(dataset_augmentations));
+    DLDataset d("D:/dataset/isic_classification/isic_classification.yml", batch_size, dataset_augmentations);
 
     if (save_images) {
-        output_path = "../output_images_classification_inference";
-        create_directory(output_path);
-        for (int c = 0; c < d.classes_.size(); ++c) {
-            create_directories(output_path / path(d.classes_[c]));
+        result_dir = "../output_images_classification_inference";
+        create_directory(result_dir);
+        for (const auto& c : d.classes_) {
+            create_directories(result_dir / path(c));
         }
     }
-
-    // Prepare tensors which store batch
-    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
-    tensor output, target, result, single_image;
 
     d.SetSplit(SplitType::test);
     int num_samples_test = vsize(d.GetSplit());
     int num_batches_test = num_samples_test / batch_size;
-    float sum = 0., ca = 0.;
+    DataGenerator d_generator(&d, batch_size, size, size, 5);
 
+    float sum = 0., ca = 0., mean_metric;
+    tensor output, target, result, single_image;
     View<DataType::float32> img_t;
-
     vector<float> total_metric;
     Metric* m = getMetric("categorical_accuracy");
+    d_generator.Start();
 
-    load(net, "isic_class_VGG16_sgd_lr_0.001_momentum_0.9_loss_sce_size_224_epoch_48.bin");
-
+    // Test for each batch
     cout << "Starting test:" << endl;
-    for (int i = 0, n = 0; i < num_batches_test; ++i) {
-        cout << "Test: - (batch " << i << "/" << num_batches_test << ") - ";
+    for (int i = 0, n = 0; d_generator.HasNext(); ++i) {
+        cout << "Test: (batch " << i << "/" << num_batches_test - 1 << ") - ";
+        cout << "|fifo| " << d_generator.Size() << " ";
+        tensor x, y;
 
         // Load a batch
-        d.LoadBatch(x, y);
+        if (d_generator.PopBatch(x, y)) {
+            // Preprocessing
+            x->div_(255.0);
 
-        // Preprocessing
-        x->div_(255.0);
+            forward(net, { x });
+            output = getOutput(getOut(net)[0]);
 
-        forward(net, { x });
-        output = getOutput(out);
+            // Compute accuracy and optionally save the output images
+            sum = 0.;
+            for (int j = 0; j < batch_size; ++j, ++n) {
+                result = output->select({ to_string(j) });
+                target = y->select({ to_string(j) });
 
-        // Compute accuracy and optionally save the output images
-        sum = 0.;
-        for (int j = 0; j < batch_size; ++j, ++n) {
-            result = output->select({to_string(j)});
-            target = y->select({to_string(j)});
+                ca = m->value(target, result);
 
-            ca = m->value(target, result);
+                total_metric.push_back(ca);
+                sum += ca;
 
-            total_metric.push_back(ca);
-            sum += ca;
+                if (save_images) {
+                    float max = std::numeric_limits<float>::min();
+                    int classe = -1;
+                    int gt_class = -1;
+                    for (int k = 0; k < result->size; ++k) {
+                        if (result->ptr[k] > max) {
+                            max = result->ptr[k];
+                            classe = k;
+                        }
 
-            if (save_images) {
-                float max = std::numeric_limits<float>::min();
-                int classe = -1;
-                int gt_class = -1;
-                for (int i = 0; i < result->size; ++i) {
-                    if (result->ptr[i] > max) {
-                        max = result->ptr[i];
-                        classe = i;
+                        if (target->ptr[k] == 1.) {
+                            gt_class = k;
+                        }
                     }
 
-                    if (target->ptr[i] == 1.) {
-                        gt_class = i;
-                    }
+                    single_image = x->select({ to_string(j) });
+                    TensorToView(single_image, img_t);
+                    img_t.colortype_ = ColorType::BGR;
+                    single_image->mult_(255.);
+
+                    path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
+
+                    path cur_path = result_dir / d.classes_[classe] /
+                                    filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
+                    ImWrite(cur_path, img_t);
+                    delete single_image;
                 }
 
-                single_image = x->select({to_string(j)});
-                TensorToView(single_image, img_t);
-                img_t.colortype_ = ColorType::BGR;
-                single_image->mult_(255.);
+                delete result;
+                delete target;
 
-                path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
-
-                path cur_path = output_path / d.classes_[classe] / filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
-                ImWrite(cur_path, img_t);
             }
-
-            delete result;
-            delete target;
-            delete single_image;
+            delete x;
+            delete y;
+            cout << "categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
         }
-        cout << "categorical_accuracy: " << static_cast<float>(sum) / batch_size << endl;
     }
+    d_generator.Stop();
 
-    float total_avg = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
-    cout << "Total categorical accuracy: " << total_avg << endl;
+    mean_metric = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / total_metric.size();
+    cout << "Total categorical accuracy: " << mean_metric << endl;
 
     ofstream of("output_classification_inference.txt");
-    of << "Total categorical accuracy: " << total_avg << endl;
+    of << "Total categorical accuracy: " << mean_metric << endl;
     of.close();
 
-    delete x;
-    delete y;
     delete output;
 
     return EXIT_SUCCESS;
