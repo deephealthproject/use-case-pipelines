@@ -10,6 +10,7 @@ struct Settings
     int epochs;
     int batch_size;
     int num_classes;
+    int n_channels;
     bool save_images;
     std::vector<int> size;
     std::string model;

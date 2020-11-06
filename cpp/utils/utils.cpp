@@ -15,6 +15,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
             ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
             ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
+            ("n_channels", "Number of channels", cxxopts::value<int>()->default_value("1"))
             ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
             ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("192,192"))
             ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
@@ -44,6 +45,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
     s.epochs = args["epochs"].as<int>();
     s.batch_size = args["batch_size"].as<int>();
     s.num_classes = args["num_classes"].as<int>();
+    s.n_channels = args["n_channels"].as<int>();
     s.save_images = args["save_images"].as<bool>();
     s.size = args["size"].as<vector<int>>();
     s.model = args["model"].as<string>();
@@ -81,7 +83,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
     }
     else { // Define the network
         layer in, out;
-        in = Input({ 3, s.size[0], s.size[1] });
+        in = Input({ s.n_channels, s.size[0], s.size[1] });
 
         if (!s.model.compare("SegNet")) {
             out = SegNet(in, s.num_classes);

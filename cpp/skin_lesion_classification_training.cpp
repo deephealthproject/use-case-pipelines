@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
 
         if (mean_metric > best_metric) {
             cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, s.checkpoint_dir / path("isic_classification_checkpoint_epoch_" + to_string(i) + ".onnx"));
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path("isic_classification_checkpoint_epoch_" + to_string(i) + ".onnx")).string());
             best_metric = mean_metric;
         }
 

@@ -19,6 +19,9 @@ target_sources(PNEUMOTHORAX_SEGMENTATION_TRAINING PRIVATE
 target_sources(PNEUMOTHORAX_SEGMENTATION_INFERENCE PRIVATE
         pneumothorax_segmentation_inference.cpp
 )
+target_sources(MS_SEGMENTATION_TRAINING PRIVATE
+        ms_segmentation_training.cpp
+)
 target_sources(COPY_GROUND_TRUTH_PNEUMOTHORAX PRIVATE
         copy_ground_truth_pneumothorax.cpp
 )
