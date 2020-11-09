@@ -6,7 +6,6 @@ DEPENDENCIES_DIR="eddl_dependencies"
 mkdir -p $DEPENDENCIES_DIR && cd $DEPENDENCIES_DIR
 
 ############ EDDL dependencies
-apt install zlib1g-dev 
 
 git clone https://gitlab.com/libeigen/eigen.git
 cd eigen
