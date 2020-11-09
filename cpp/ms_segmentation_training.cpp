@@ -27,7 +27,7 @@ public:
     // Volume related variables
     int slices_;
     int current_slice_ = 0;
-    int current_volume_ = 0;
+    int current_volume_ = -1;
     vector<int> indices_;
     vector<string> names_;
     std::mt19937 g_;
@@ -39,8 +39,8 @@ public:
     // Open a new volume, its ground truth and reset slice variables
     void Init()
     {
-        const int index = d_.GetSplit()[current_volume_];
         current_volume_++;
+        const int index = d_.GetSplit()[current_volume_];
         Sample& elem = d_.samples_[index];
 
         volume_ = elem.LoadImage(d_.ctype_, false);
@@ -78,52 +78,30 @@ public:
 
     void Reset()
     {
-        current_volume_ = 0;
+        current_volume_ = -1;
         current_slice_ = 0;
+        indices_.clear();
         d_.ResetAllBatches();
     }
 
     bool LoadBatch(tensor& images, tensor& labels)
     {
-        if (current_slice_ >= vsize(indices_)) {
-            if (current_volume_ >= vsize(d_.GetSplit())) {
-                return false;
-            }
-            // Load a new volume
-            Init();
-        }
-
         int& bs = d_.batch_size_;
 
         //Image img, gt;
         int offset = 0, start = 0;
-        //vector<path> names;
-
-        // Check if tensors size matches with batch dimensions
-        // size of images tensor must be equal to batch_size * number_of_image_channels * image_width * image_height
-        //if (images->size != bs * d.n_channels_ * d.resize_dims_[0] * d.resize_dims_[1]) {
-        //    cerr << ECVL_ERROR_MSG "images tensor must have N = batch_size, C = number_of_image_channels, H = image_height, W = image_width" << endl;
-        //    ECVL_ERROR_INCOMPATIBLE_DIMENSIONS
-        //}
-        //
-        // segmentation problem so size of labels tensor must be equal to batch_size * number_of_label_channels * image_width * image_height
-        //if (labels->size != bs * d.n_channels_gt_ * d.resize_dims_[0] * d.resize_dims_[1]) {
-        //    cerr << ECVL_ERROR_MSG "labels tensor must have N = batch_size, C = number_of_label_channels, H = image_height, W = image_width" << endl;
-        //    ECVL_ERROR_INCOMPATIBLE_DIMENSIONS
-        //}
-
-        // Move to next samples
-        //{ // CRITICAL REGION STARTS
-            //std::unique_lock<std::mutex> lck(d_.mutex_current_batch_);
-
         start = d_.current_batch_[+d_.current_split_] * bs;
-        ++d_.current_batch_[+d_.current_split_];
-        //} // CRITICAL REGION ENDS
 
-        //if (vsize(d.GetSplit()) < start + bs) {
-        //    cerr << ECVL_ERROR_MSG "Batch size is not even with the number of samples. Hint: loop through `num_batches = num_samples / batch_size;`" << endl;
-        //    ECVL_ERROR_CANNOT_LOAD_IMAGE
-        //}
+        if (current_slice_ >= vsize(indices_) || vsize(indices_) < start + bs) {
+            if (current_volume_ >= vsize(d_.GetSplit()) - 1) {
+                return false;
+            }
+            // Load a new volume
+            Init();
+            d_.ResetCurrentBatch();
+        }
+
+        ++d_.current_batch_[+d_.current_split_];
 
         // Fill tensors with data
         for (int i = start; i < start + bs; ++i) {
@@ -232,20 +210,21 @@ int main(int argc, char* argv[])
         shuffle(d.GetSplit().begin(), d.GetSplit().end(), g);
 
         // Feed batches to the model
-        int j = 0;
+        int j = 0, old_volume = 0;
         while (true) {
-            break;
-            if (v.current_slice_ >= vsize(v.indices_)) {
-                j = 0; // Current volume ended
-            }
-
             tm.reset();
             tm.start();
             if (!v.LoadBatch(x, y)) {
                  break; // All volumes have been processed
             }
+
+            if (old_volume != v.current_volume_) {
+                j = 0; // Current volume ended
+                old_volume = v.current_volume_;
+            }
+
             cout << "Epoch " << i << "/" << s.epochs - 1 << \
-            " - volume "<< v.current_volume_ << "/"<< vsize(d.GetSplit()) << \
+            " - volume "<< v.current_volume_ << "/"<< vsize(d.GetSplit()) - 1 << \
             " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
 
             tm.stop();
@@ -272,20 +251,21 @@ int main(int argc, char* argv[])
         evaluator.ResetEval();
 
         // Validation for each batch
-        j = 0;
+        j = 0, old_volume = 0;
         while (true) {
-            if (v.current_slice_ >= vsize(v.indices_)) {
-                j = 0; // Current volume ended
-            }
-
             tm.reset();
             tm.start();
             if (!v.LoadBatch(x, y)) {
                 break; // All volumes have been processed
             }
 
+            if (old_volume != v.current_volume_) {
+                j = 0; // Current volume ended
+                old_volume = v.current_volume_;
+            }
+
             cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << \
-                " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) << \
+                " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
                 " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
 
             tm.stop();
