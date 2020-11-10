@@ -14,17 +14,17 @@ Dataset of the MSSEG challenge which took place during MICCAI 2016 (https://port
     1. Create the MSSEG directory (`mkdir MSSEG`)
     1. Download the `Unprocessed training dataset` from [here](https://portal.fli-iam.irisa.fr/documents/20182/22089/Unprocessed+training+dataset/d487c807-8fd2-4fa0-892e-53d4578f343a?version=1.2) and place the zip inside `MSSEG`.
     1. Download the `Pre-processed training dataset` from [here](https://portal.fli-iam.irisa.fr/documents/20182/22089/Pre-processed+training+dataset/6f1a997b-8d32-4791-b124-a35ee4fc4655?version=1.2) and place the zip inside `MSSEG`.
-1. Download the script at [https://github.com/deephealthproject/use_case_pipeline/blob/3rd_hackathon/dataset/extract_data.sh](https://github.com/deephealthproject/use_case_pipeline/blob/3rd_hackathon/dataset/extract_data.sh), save it in `MSSEG` folder, and run it.
+1. Download the script at [https://raw.githubusercontent.com/deephealthproject/use_case_pipeline/3rd_hackathon/dataset/extract_data.sh](https://raw.githubusercontent.com/deephealthproject/use_case_pipeline/3rd_hackathon/dataset/extract_data.sh), save it in `MSSEG` folder, and run it.
     ```shell
     cd ~
     mkdir MSSEG && cd MSSEG
-    wget https://github.com/deephealthproject/use_case_pipeline/blob/3rd_hackathon/dataset/extract_data.sh
+    wget https://raw.githubusercontent.com/deephealthproject/use_case_pipeline/3rd_hackathon/dataset/extract_data.sh
     chmod +x extract_data.sh
     ./extract_data.sh
     ```
 1. Place the `ms_segmentation.yaml` and put it inside `MSSEG` directory.
     ```shell
-    wget https://github.com/deephealthproject/use_case_pipeline/blob/3rd_hackathon/dataset/ms_segmentation.yml
+    wget https://raw.githubusercontent.com/deephealthproject/use_case_pipeline/3rd_hackathon/dataset/ms_segmentation.yml
     ```
 
 
