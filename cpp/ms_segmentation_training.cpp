@@ -45,23 +45,11 @@ public:
 
         volume_ = elem.LoadImage(d_.ctype_, false);
         Image tmp = elem.LoadImage(d_.ctype_gt_, true);
-        volume_.channels_ = "zxy";
-        tmp.channels_ = "zxy";
         CopyImage(tmp, gt_, DataType::float32);
         
         current_slice_ = 0;
         slices_ = volume_.Channels();
 
-        // [1 2] [3 4] [5 6]
-        // [1 2] [2 3] [3 4] [4 5] [5 6]
-
-        // 0 1 2 3 4 5 -> channel 2, stride 2, slices 12
-        // 0 1 2 3 -> channel 3, stride 3, slices 12
-        // 
-        // 0 1 2 3 4 5 6 7 8 9 10 11 -> channel 1, stride 1, slices 12
-        // 0 1 2 3 4 5 6 7 8 9 10 11 -> channel 2, stride 1, slices 12
-
-        // 5    1 4 ...
         indices_ = vector<int>(slices_ / stride_);
         iota(indices_.begin(), indices_.end(), 0);
         shuffle(indices_.begin(), indices_.end(), g_);
@@ -72,8 +60,6 @@ public:
         names_.emplace_back(sample_name);
         sample_name = elem.label_path_.value().parent_path().stem().string() + "_" + elem.label_path_.value().stem().string() + "_";
         names_.emplace_back(sample_name);
-
-        // TODO initialize indices for random slices sampling
     }
 
     void Reset()
@@ -106,8 +92,8 @@ public:
         // Fill tensors with data
         for (int i = start; i < start + bs; ++i) {
             // Read slices and their ground truth
-            View<DataType::float32> v_volume_(volume_, { indices_[current_slice_] * stride_,0,0 }, { n_channels_, volume_.Width(), volume_.Height() });
-            View<DataType::float32> v_gt_(gt_, { indices_[current_slice_] * stride_,0,0 }, { n_channels_, gt_.Width(), gt_.Height() });
+            View<DataType::float32> v_volume_(volume_, { 0, 0, indices_[current_slice_] * stride_ }, { volume_.Width(), volume_.Height(), n_channels_ });
+            View<DataType::float32> v_gt_(gt_, { 0, 0, indices_[current_slice_] * stride_ }, { gt_.Width(), gt_.Height(), n_channels_ });
 
             // Apply chain of augmentations to sample image and corresponding ground truth
             d_.augs_.Apply(d_.current_split_, v_volume_, v_gt_);
@@ -135,11 +121,11 @@ int main(int argc, char* argv[])
 
     // Build model
     build(s.net,
-        adam(s.lr),      // Optimizer
-        { s.loss },                 // Loss
-        { "dice" }, // Metric
-        s.cs,                       // Computing Service
-        s.random_weights            // Randomly initialize network weights
+        adam(s.lr),         // Optimizer
+        { s.loss },         // Loss
+        { "dice" },         // Metric
+        s.cs,               // Computing Service
+        s.random_weights    // Randomly initialize network weights
     );
 
     // View model
@@ -148,14 +134,7 @@ int main(int argc, char* argv[])
     setlogfile(s.net, "ms_segmentation");
 
     // Set augmentations for training and validation
-    auto training_augs = make_shared<SequentialAugmentationContainer>(
-        AugResizeDim(s.size)//,
-        //AugMirror(.5),
-        //AugRotate({ -10, 10 }),
-        //AugBrightness({ 0, 30 }),
-        //AugGammaContrast({ 0,3 })
-        );
-
+    auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
     auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
     DatasetAugmentations dataset_augmentations{ {training_augs, validation_augs, nullptr } };
@@ -184,8 +163,10 @@ int main(int argc, char* argv[])
     iota(indices.begin(), indices.end(), 0);
 
     std::mt19937 g(std::random_device{}());
-    View<DataType::float32> pred_ecvl;
-    View<DataType::float32> gt_ecvl;
+//    View<DataType::float32> pred_ecvl;
+//    View<DataType::float32> gt_ecvl;
+    Image pred_ecvl;
+    Image gt_ecvl;
     Image orig_img, orig_gt;
     float best_metric = 0;
     ofstream of;
@@ -232,9 +213,6 @@ int main(int argc, char* argv[])
             tm.reset();
             tm.start();
 
-            // Preprocessing
-            //x->div_(255.);
-
             // Train batch
             train_batch(s.net, { x }, { y }, indices);
 
@@ -273,72 +251,39 @@ int main(int argc, char* argv[])
             tm.reset();
             tm.start();
 
-            // Preprocessing
-            // x->div_(255.);
-
             forward(s.net, { x });
             unique_ptr<Tensor> output(getOutput(getOut(s.net)[0]));
 
             // Compute Dice metric and optionally save the output images
             for (int k = 0; k < s.batch_size; ++k) {
                 tensor pred = output->select({ to_string(k) });
-                TensorToView(pred, pred_ecvl);
+                TensorToImage(pred, pred_ecvl);
                 pred_ecvl.colortype_ = ColorType::GRAY;
                 pred_ecvl.channels_ = "xyc";
 
                 tensor gt = y->select({ to_string(k) });
-                TensorToView(gt, gt_ecvl);
+                TensorToImage(gt, gt_ecvl);
                 gt_ecvl.colortype_ = ColorType::GRAY;
                 gt_ecvl.channels_ = "xyc";
 
-                // NOTE: dice computed on downsampled images
-                cout << "- Dice: " << evaluator.DiceCoefficient(pred_ecvl, gt_ecvl) << " ";
+                for (int m = 0; m < s.n_channels; ++m) {
+                    View<DataType::float32> view(pred_ecvl, {0, 0, m}, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
+                    View<DataType::float32> view_gt(gt_ecvl, { 0, 0, m }, { gt_ecvl.Width(), gt_ecvl.Height(), 1 });
 
-                if (s.save_images) {
-                    pred->mult_(255.);
-                    gt->mult_(255.);
-                    for (int m = 0; m < s.n_channels; ++m) {
+                    // NOTE: dice computed on downsampled images
+                    cout << "- Dice: " << evaluator.DiceCoefficient(view, view_gt) << " ";
 
-                        View<DataType::float32> view(pred_ecvl, {0, 0, m}, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
+                    if (s.save_images) {
+                        pred->mult_(255.);
+                        gt->mult_(255.);
                         ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view);
-
-                        View<DataType::float32> view_gt(gt_ecvl, { 0, 0, m }, { gt_ecvl.Width(), gt_ecvl.Height(), 1 });
                         ImWrite(current_path / path(v.names_[1] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view_gt);
-                        //ImWrite(current_path / path(v.names_[1] + to_string(k) + "_" + to_string(m) + ".png"), view_gt);
-
-                        //    // Save original image fused together with prediction (red mask) and ground truth (green mask)
-                        //    ImRead(names[n], orig_img);
-                        //ImRead(names[n + 1], orig_gt, ImReadMode::GRAYSCALE);
-                        //ChangeColorSpace(orig_img, orig_img, ColorType::BGR);
-                        //
-                        //ResizeDim(pred_ecvl, pred_ecvl, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
-                        //
-                        //View<DataType::uint8> v_orig(orig_img);
-                        //auto i_pred = pred_ecvl.Begin();
-                        //auto i_gt = orig_gt.Begin<uint8_t>();
-                        //
-                        //for (int c = 0; c < pred_ecvl.Width(); ++c) {
-                        //    for (int r = 0; r < pred_ecvl.Height(); ++r, ++i_pred, ++i_gt) {
-                        //        // Replace in the green channel of the original image pixels that are 255 in the ground truth mask
-                        //        if (*i_gt == 255) {
-                        //            v_orig({ r, c, 1 }) = 255;
-                        //        }
-                        //        // Replace in the red channel of the original image pixels that are 255 in the prediction mask
-                        //        if (*i_pred == 255) {
-                        //            v_orig({ r, c, 2 }) = 255;
-                        //        }
-                        //    }
-                        //}
-                        //
-                        //ImWrite(current_path / names[n].filename().replace_extension(".png"), orig_img);
                     }
                 }
                 delete pred;
                 delete gt;
             }
             tm.stop();
-
-            //cout << endl;
             cout << " - Validation time: " << tm.getTimeSec() << endl;
 
             ++j;

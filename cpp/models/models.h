@@ -19,6 +19,9 @@ eddl::layer SegNetBN(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPadding(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPaddingBN(eddl::layer x, const int& num_classes);
 
+// Nabla-net (https://www.hal.inserm.fr/inserm-01397806/file/MSSEG_Challenge_Proceedings.pdf 37-43)
+eddl::layer Nabla(eddl::layer x, const int& num_classes);
+
 eddl::layer ResNet_01(eddl::layer x, const int& num_classes);
 
 #endif // MODELS_H_

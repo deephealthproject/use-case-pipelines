@@ -39,8 +39,8 @@ float Eval::DiceCoefficient(Image& img, Image& gt, float thresh)
     float intersection = 0;
     float unions = 0;
 
-    auto i_img = img.ContiguousBegin<float>(), e_img = img.ContiguousEnd<float>();
-    auto i_gt = gt.ContiguousBegin<float>();
+    auto i_img = img.Begin<float>(), e_img = img.End<float>();
+    auto i_gt = gt.Begin<float>();
 
     for (; i_img != e_img; ++i_img, ++i_gt) {
         *i_img = ((*i_img) < thresh) ? 0.f : 1.f;

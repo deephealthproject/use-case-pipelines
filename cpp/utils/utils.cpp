@@ -14,14 +14,14 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
     options.add_options()
             ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
             ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
-            ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
-            ("n_channels", "Number of channels", cxxopts::value<int>()->default_value("1"))
+            ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("5"))
+            ("n_channels", "Number of channels", cxxopts::value<int>()->default_value("5"))
             ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
-            ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("192,192"))
+            ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("256,256"))
             ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
             ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value("0.0001"))
             ("momentum", "Momentum", cxxopts::value<float>()->default_value("0.9"))
-            ("model", "Model of the network", cxxopts::value<string>()->default_value("SegNetBN"))
+            ("model", "Model of the network", cxxopts::value<string>()->default_value("Nabla"))
             ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
             ("lsb", "How many batches are processed before synchronizing the model weights",
              cxxopts::value<int>()->default_value("1"))
@@ -93,6 +93,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = UNetWithPadding(in, s.num_classes);
         } else if (!s.model.compare("UNetWithPaddingBN")) {
             out = UNetWithPaddingBN(in, s.num_classes);
+        } else if (!s.model.compare("Nabla")) {
+            out = Nabla(in, s.num_classes);
         } else if (!s.model.compare("LeNet")) {
             out = LeNet(in, s.num_classes);
         } else if (!s.model.compare("VGG16")) {
@@ -105,7 +107,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = ResNet_01(in, s.num_classes);
         } else {
             cout << ECVL_ERROR_MSG
-                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN for segmentation;"
+                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, Nabla for segmentation;"
                     "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
             return EXIT_FAILURE;
         }

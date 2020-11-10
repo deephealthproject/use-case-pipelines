@@ -13,6 +13,44 @@ layer LeNet(layer x, const int& num_classes)
     return x;
 }
 
+layer Nabla(layer x, const int& num_classes)
+{
+    layer x1, x2;
+    // encoder
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x1 = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = MaxPool(x1, { 2,2 }, { 2,2 });
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = MaxPool(x, { 2,2 }, { 2,2 });
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+
+    // decoder
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x = UpSampling(x, { 2,2 }); // should be unpooling
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x = UpSampling(x, { 2,2 }); // should be unpooling
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x = BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same"));
+    x2 = UpSampling(x, { 2,2 }); // should be unpooling
+
+    // merge
+    x = Concat({ x1, x2 });
+
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1,1 }, "same")));
+    x = Conv(x, num_classes, { 1,1 });
+    x = Sigmoid(x);
+
+    return x;
+}
+
 layer VGG16(layer x, const int& num_classes)
 {
     x = ReLu(Conv(x, 64, { 3,3 }));
