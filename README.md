@@ -84,14 +84,14 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 
 ### C++ Training options
     -e, --epochs        Number of training epochs (default: 50)
-    -b, --batch_size    Number of images for each batch (default: 12)
-    --n_channels        Number of slices in input/output (default: 5)
-    -n, --num_classes   Number of output classes, same as n_channels (default: 5)
+    -b, --batch_size    Number of images for each batch (default: 16)
+    --n_channels        Number of slices in input/output (default: 1)
+    -n, --num_classes   Number of output classes, same as n_channels (default: 1)
     -s, --size          Size to which resize the input images (default: 256,256)
     --loss              Loss function (default: cross_entropy)
     -l, --learning_rate Learning rate (default: 0.0001)
     --momentum          Momentum (default: 0.9)
-    --model             Model of the network (default: SegNetBN)
+    --model             Model of the network (default: Nabla)
     -g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
     --lsb               How many batches are processed before synchronizing the model weights (default: 1)
     -m, --mem           CS memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
@@ -101,3 +101,14 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     -d, --dataset_path  Dataset path (mandatory)
     -c, --checkpoint    Path to the ONNX checkpoint file (optional)
     -h, --help          Print usage
+    
+### Output example
+| Test sample |   Ground Truth   |  Prediction  |
+|-------------|------------------|--------------|
+| ![](/imgs/MS_1_orig.png) | ![](/imgs/MS_1_gt.png)  |  ![](/imgs/MS_1_pred.png) |
+| ![](/imgs/MS_2_orig.png) | ![](/imgs/MS_2_gt.png)  |  ![](/imgs/MS_2_pred.png) |
+
+
+| ONNX     | Dice score on validation set (batch size 16) | Dice score on test set (batch size 16) |
+|----------|------------|------------|
+| [MS_segmentation.onnx](https://drive.google.com/uc?id=1lUXjWrGd1Gl2dRLXTOoIULvBH1Ik-qg-&export=download) | 0.83 | 0.81 |
