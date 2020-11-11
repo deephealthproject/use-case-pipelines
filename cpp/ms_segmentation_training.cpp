@@ -274,8 +274,8 @@ int main(int argc, char* argv[])
                     cout << "- Dice: " << evaluator.DiceCoefficient(view, view_gt) << " ";
 
                     if (s.save_images) {
-                        pred->mult_(255.);
-                        gt->mult_(255.);
+                        Mul(gt_ecvl, 255, gt_ecvl);
+                        Mul(pred_ecvl, 255, pred_ecvl);
                         ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view);
                         ImWrite(current_path / path(v.names_[1] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view_gt);
                     }
