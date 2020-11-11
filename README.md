@@ -37,7 +37,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 ## Building
 
 - **\*nix**
-    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs ([video](https://drive.google.com/uc?id=1xGPHIEXK-vzxEF0y8N148EhFud1Ackm4&export=download) in which these steps are performed in a clean nvidia docker image):
+    - Building from scratch, assuming CUDA driver already installed if you want to use GPUs:
         ```bash
         sudo apt update
         sudo apt install wget git make gcc g++
@@ -51,12 +51,8 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
         # symbolic link for cublas if we have cuda >= 10.1
         sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/libcublas.so
 
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
+        git clone --recursive https://github.com/deephealthproject/use_case_pipeline.git --branch 3rd_hackathon
         cd use_case_pipeline
-
-        # install dependencies as sudo so that they will be installed in "standard" system directories
-        chmod +x install_dependencies.sh
-        sudo ./install_dependencies.sh
 
         # install EDDL, OpenCV, ECVL and build the pipeline
         chmod +x build_pipeline.sh
@@ -65,7 +61,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 
     - Building with all the dependencies already installed:
         ```bash
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
+        git clone --recursive https://github.com/deephealthproject/use_case_pipeline.git --branch 3rd_hackathon
         cd use_case_pipeline
         mkdir build && cd build
 
