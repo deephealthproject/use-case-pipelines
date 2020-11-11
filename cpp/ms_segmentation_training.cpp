@@ -16,45 +16,50 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
+// MSVolume manages loading of volumes and their slices
 class MSVolume
 {
 public:
     DLDataset& d_;
-    const int n_channels_ = 1;
-    const int stride_;
+    const int n_channels_ = 1; // Number of slices to provide as input together
+    const int stride_; // Stride represents the jump to make to reach the next volume slice. Default value in constructor
     Image volume_, gt_;
-
-    // Volume related variables
-    int slices_;
-    int current_slice_ = 0;
-    int current_volume_ = -1;
-    vector<int> indices_;
-    vector<string> names_;
     std::mt19937 g_;
 
-    // Default: stride = n_channels means no overlapping
+    // Volume related variables
+    int slices_; // Number of slices in the current volume
+    int current_slice_ = 0; // Index of the current slice
+    int current_volume_ = -1; // Index of the current volume of the dataset
+    vector<int> indices_; // vector with random indices in [0,slices_ / stride_]
+    vector<string> names_; // names of current volume and its ground truth
+
+    // Default: stride = n_channels (means no overlapping)
     MSVolume(DLDataset& d, int n_channels) : d_{ d }, n_channels_{ n_channels }, stride_{ n_channels }, g_(std::random_device{}()) {}
+
     MSVolume(DLDataset& d, int n_channels, int stride) : d_{ d }, n_channels_{ n_channels }, stride_{ stride }, g_(std::random_device{}()) {}
 
     // Open a new volume, its ground truth and reset slice variables
     void Init()
     {
         current_volume_++;
+        // Get next volume from DLDataset
         const int index = d_.GetSplit()[current_volume_];
         Sample& elem = d_.samples_[index];
 
+        // Load a volume and its gt in memory
         volume_ = elem.LoadImage(d_.ctype_, false);
         Image tmp = elem.LoadImage(d_.ctype_gt_, true);
         CopyImage(tmp, gt_, DataType::float32);
-        
+
         current_slice_ = 0;
         slices_ = volume_.Channels();
 
+        // indices created as random between 0 and slices_ / stride_
         indices_ = vector<int>(slices_ / stride_);
         iota(indices_.begin(), indices_.end(), 0);
         shuffle(indices_.begin(), indices_.end(), g_);
 
-        // Save names of current volume (volume and gt)
+        // Save names of current volume and gt --> for save_images
         names_.clear();
         string sample_name = elem.location_[0].parent_path().stem().string() + "_" + elem.location_[0].stem().string() + "_";
         names_.emplace_back(sample_name);
@@ -62,6 +67,7 @@ public:
         names_.emplace_back(sample_name);
     }
 
+    // Reset variables at each training or validation
     void Reset()
     {
         current_volume_ = -1;
@@ -70,15 +76,18 @@ public:
         d_.ResetAllBatches();
     }
 
+    // "Override" the LoadBatch of DLDataset
+    // return false if every volume has been processed, true otherwise
     bool LoadBatch(tensor& images, tensor& labels)
     {
         int& bs = d_.batch_size_;
 
-        //Image img, gt;
         int offset = 0, start = 0;
         start = d_.current_batch_[+d_.current_split_] * bs;
 
+        // Load a new volume if we already loaded all slices of the current one
         if (current_slice_ >= vsize(indices_) || vsize(indices_) < start + bs) {
+            // Stop training/validation if there are no more volume to read
             if (current_volume_ >= vsize(d_.GetSplit()) - 1) {
                 return false;
             }
@@ -113,7 +122,7 @@ public:
 
 int main(int argc, char* argv[])
 {
-    // Settings
+    // Settings parsed from command-line arguments
     Settings s;
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
@@ -143,7 +152,7 @@ int main(int argc, char* argv[])
     cout << "Reading dataset" << endl;
     //Training split is set by default
     DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::none, ColorType::none);
-    MSVolume v(d, s.n_channels);
+    MSVolume v(d, s.n_channels); // MSVolume takes a reference to DLDataset
 
     // Prepare tensors which store batch
     tensor x = new Tensor({ d.batch_size_, s.n_channels, s.size[0], s.size[1] });
@@ -163,8 +172,8 @@ int main(int argc, char* argv[])
     iota(indices.begin(), indices.end(), 0);
 
     std::mt19937 g(std::random_device{}());
-//    View<DataType::float32> pred_ecvl;
-//    View<DataType::float32> gt_ecvl;
+    //    View<DataType::float32> pred_ecvl;
+    //    View<DataType::float32> gt_ecvl;
     Image pred_ecvl;
     Image gt_ecvl;
     Image orig_img, orig_gt;
@@ -196,7 +205,7 @@ int main(int argc, char* argv[])
             tm.reset();
             tm.start();
             if (!v.LoadBatch(x, y)) {
-                 break; // All volumes have been processed
+                break; // All volumes have been processed
             }
 
             if (old_volume != v.current_volume_) {
@@ -205,8 +214,8 @@ int main(int argc, char* argv[])
             }
 
             cout << "Epoch " << i << "/" << s.epochs - 1 << \
-            " - volume "<< v.current_volume_ << "/"<< vsize(d.GetSplit()) - 1 << \
-            " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
+                " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
+                " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
 
             tm.stop();
             cout << " - Load time: " << tm.getTimeSec() << " - ";
@@ -224,7 +233,7 @@ int main(int argc, char* argv[])
 
         cout << "Starting validation:" << endl;
         d.SetSplit(SplitType::validation);
-        
+
         v.Reset();
         evaluator.ResetEval();
 
@@ -267,7 +276,7 @@ int main(int argc, char* argv[])
                 gt_ecvl.channels_ = "xyc";
 
                 for (int m = 0; m < s.n_channels; ++m) {
-                    View<DataType::float32> view(pred_ecvl, {0, 0, m}, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
+                    View<DataType::float32> view(pred_ecvl, { 0, 0, m }, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
                     View<DataType::float32> view_gt(gt_ecvl, { 0, 0, m }, { gt_ecvl.Width(), gt_ecvl.Height(), 1 });
 
                     // NOTE: dice computed on downsampled images

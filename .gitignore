@@ -3,4 +3,6 @@
 /deephealth*
 output*
 /.vs*
+/.idea*
+/out*
 /cmake-build*
