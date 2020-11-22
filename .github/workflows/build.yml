@@ -1,0 +1,45 @@
+name: build
+
+on: [push, pull_request]
+
+env:
+  BUILD_TYPE: Release
+  CMAKE_GENERATOR: "Unix Makefiles"
+  ECVL_VERSION: "v0.2.3"
+  EDDL_VERSION: "v0.8a"
+  PROC: 2
+# OPENCV_VERSION: "3.4.12"
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+
+      - name: Cache Dependencies
+        id: cache-deps
+        uses: actions/cache@v2
+        with:
+          path: ${{ runner.workspace }}/deps_install
+          key: ${{ runner.os }}-deps-cache
+
+      - name: Install dependencies
+        env:
+          DEPS_PATH: ${{ runner.workspace }}/deps
+          DEPS_INSTALL_PATH: ${{ runner.workspace }}/deps_install
+          CACHE: "${{ steps.cache-deps.outputs.cache-hit }}"
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends git make wget curl libeigen3-dev libopencv-dev
+          chmod +x .github/workflows/deps.sh
+          .github/workflows/deps.sh
+
+      - name: Configure and build
+        env:
+          DEPS_INSTALL_PATH: ${{ runner.workspace }}/deps_install
+        run: |
+          mkdir -p build && cd build
+          cmake -G"${CMAKE_GENERATOR}" -DBUILD_TYPE=${BUILD_TYPE} -Decvl_DIR=${DEPS_INSTALL_PATH}/ecvl ..
+          cmake --build . --config ${BUILD_TYPE} --parallel ${PROC}
+
