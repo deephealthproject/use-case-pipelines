@@ -159,3 +159,39 @@ def SegNetBN(x, num_classes):
     x = eddl.Conv(x, num_classes, [3, 3], [1, 1], "same")
 
     return x
+
+
+def Nabla(x, num_classes):
+    # encoder
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x1 = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.MaxPool(x1, [2, 2], [2, 2])
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.MaxPool(x, [2, 2], [2, 2])
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.MaxPool(x, [2, 2], [2, 2])
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+
+    # decoder
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x = eddl.UpSampling(x, [2, 2])  # should be unpooling
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x = eddl.UpSampling(x, [2, 2])  # should be unpooling
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x = eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True)
+    x2 = eddl.UpSampling(x, [2, 2])  # should be unpooling
+
+    # merge
+    x = eddl.Concat([x1, x2])
+
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.ReLu(eddl.BatchNormalization(eddl.Conv(x, 64, [3, 3], [1, 1], "same"), True))
+    x = eddl.Conv(x, num_classes, [1, 1])
+    x = eddl.Sigmoid(x)
+
+    return x
