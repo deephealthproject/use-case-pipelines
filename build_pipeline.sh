@@ -36,7 +36,7 @@ OPENCV_INSTALL_DIR=$UCP_PATH/$DEPENDENCIES_DIR/opencv-$OPENCV_VERSION/build
 cd $UCP_PATH/$DEPENDENCIES_DIR
 git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
-git checkout tags/v0.2.3 # Latest release
+git checkout tags/v0.3.0 # Latest release
 mkdir -p build && cd build
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
