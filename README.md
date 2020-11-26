@@ -2,11 +2,15 @@
 
 The 3rd DeepHealth Hackathon concern segmentation of multiple sclerosis lesion volumes. For this task a baseline Pipeline that uses EDDL and ECVL has been prepared.
 
+
 ## Requirements
 - CMake 3.13 or later
 - C++ Compiler with C++17 support (e.g. GCC 6 or later, Clang 5.0 or later)
 - MSSEG Dataset
 
+Tested with:
+- ECVL 0.3.0 and EDDL 0.7.1
+- PyECVL 0.5.1 and PyEDDL 0.9.0
 
 ## Multiple Sclerosis Lesion Segmentation Dataset
 Dataset of the MSSEG challenge which took place during MICCAI 2016 (https://portal.fli-iam.irisa.fr/msseg-challenge).
