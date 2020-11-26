@@ -292,6 +292,10 @@ def main(args):
             best_dice = mean_dice
         print("Mean Dice Coefficient: {:.6g}".format(mean_dice))
 
+        # Save metric values on file
+        with open("output_evaluate_ms_segmentation.txt", 'a') as f:
+            f.write("Epoch {} - Mean Dice Coefficient: {}".format(e, evaluator.MeanMetric()))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
