@@ -109,6 +109,6 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 | ![](/imgs/MS_2_orig.png) | ![](/imgs/MS_2_gt.png)  |  ![](/imgs/MS_2_pred.png) |
 
 
-| ONNX     | Dice score on validation set (batch size 16) | Dice score on test set (batch size 16) |
+| ONNX     | Best Dice score on validation set (batch size 16 - epoch 40) | Dice score on test set (batch size 16 - epoch 40) |
 |----------|------------|------------|
 | [MS_segmentation.onnx](https://drive.google.com/uc?id=1lUXjWrGd1Gl2dRLXTOoIULvBH1Ik-qg-&export=download) | 0.83 | 0.81 |
