@@ -143,10 +143,21 @@ int main(int argc, char* argv[])
     setlogfile(s.net, "ms_segmentation");
 
     // Set augmentations for training and validation
-    auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
-    auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
+    //auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
-    DatasetAugmentations dataset_augmentations{ {training_augs, validation_augs, nullptr } };
+    auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size),
+                                                                      //AugMirror(.5),
+                                                                      //AugFlip(.5),
+                                                                      AugRotate({ -180, 180 }));
+                                                                      //AugAdditivePoissonNoise({ 0, 10 }),
+                                                                      //AugGammaContrast({ .5, 1.5 }),
+                                                                      //AugGaussianBlur({ .0, .8 }),
+                                                                      //AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+
+    auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
+    auto testing_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
+
+    DatasetAugmentations dataset_augmentations{ {training_augs, validation_augs, testing_augs } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
@@ -174,6 +185,7 @@ int main(int argc, char* argv[])
     std::mt19937 g(std::random_device{}());
     //    View<DataType::float32> pred_ecvl;
     //    View<DataType::float32> gt_ecvl;
+    Image input_image_ecvl;
     Image pred_ecvl;
     Image gt_ecvl;
     Image orig_img, orig_gt;
@@ -182,24 +194,153 @@ int main(int argc, char* argv[])
     Eval evaluator;
     cv::TickMeter tm;
 
-    cout << "Starting training" << endl;
-    for (int i = 0; i < s.epochs; ++i) {
-        v.Reset();
+    if (s.do_training) {
+        cout << "Starting training" << endl;
+        for (int i = 0; i < s.epochs; ++i) {
+            v.Reset();
 
-        auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
+            auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
+            if (s.save_images) {
+                create_directory(current_path);
+            }
+
+            d.SetSplit(SplitType::training);
+
+            // Reset errors
+            reset_loss(s.net);
+
+            // Shuffle training list
+            shuffle(d.GetSplit().begin(), d.GetSplit().end(), g);
+
+            // Feed batches to the model
+            int j = 0, old_volume = 0;
+            while (true) {
+                tm.reset();
+                tm.start();
+                if (!v.LoadBatch(x, y)) {
+                    break; // All volumes have been processed
+                }
+
+                if (old_volume != v.current_volume_) {
+                    j = 0; // Current volume ended
+                    old_volume = v.current_volume_;
+                }
+
+                cout << "Epoch " << i << "/" << s.epochs - 1 << \
+                    " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
+                    " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
+
+                tm.stop();
+                cout << " - Load time: " << tm.getTimeSec() << " - ";
+                tm.reset();
+                tm.start();
+
+                // Train batch
+                train_batch(s.net, { x }, { y }, indices);
+
+                print_loss(s.net, j);
+                tm.stop();
+                cout << "Train time: " << tm.getTimeSec() << endl;
+                ++j;
+            }
+
+            cout << "Starting validation:" << endl;
+            d.SetSplit(SplitType::validation);
+
+            v.Reset();
+            evaluator.ResetEval();
+
+            // Validation for each batch
+            j = 0, old_volume = 0;
+            while (true) {
+                tm.reset();
+                tm.start();
+                if (!v.LoadBatch(x, y)) {
+                    break; // All volumes have been processed
+                }
+
+                if (old_volume != v.current_volume_) {
+                    j = 0; // Current volume ended
+                    old_volume = v.current_volume_;
+                }
+
+                cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << \
+                    " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
+                    " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
+
+                tm.stop();
+                cout << " - Load time: " << tm.getTimeSec() << " - ";
+                tm.reset();
+                tm.start();
+
+                forward(s.net, { x });
+                unique_ptr<Tensor> output(getOutput(getOut(s.net)[0]));
+
+                // Compute Dice metric and optionally save the output images
+                for (int k = 0; k < s.batch_size; ++k) {
+                    tensor pred = output->select({ to_string(k) });
+                    TensorToImage(pred, pred_ecvl);
+                    pred_ecvl.colortype_ = ColorType::GRAY;
+                    pred_ecvl.channels_ = "xyc";
+
+                    tensor gt = y->select({ to_string(k) });
+                    TensorToImage(gt, gt_ecvl);
+                    gt_ecvl.colortype_ = ColorType::GRAY;
+                    gt_ecvl.channels_ = "xyc";
+
+                    for (int m = 0; m < s.n_channels; ++m) {
+                        View<DataType::float32> view(pred_ecvl, { 0, 0, m }, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
+                        View<DataType::float32> view_gt(gt_ecvl, { 0, 0, m }, { gt_ecvl.Width(), gt_ecvl.Height(), 1 });
+
+                        // NOTE: dice computed on downsampled images
+                        cout << "- Dice: " << evaluator.DiceCoefficient(view, view_gt) << " ";
+
+                        if (s.save_images) {
+                            Mul(gt_ecvl, 255, gt_ecvl);
+                            Mul(pred_ecvl, 255, pred_ecvl);
+                            ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view);
+                            ImWrite(current_path / path(v.names_[1] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view_gt);
+                        }
+                    }
+                    delete pred;
+                    delete gt;
+                }
+                tm.stop();
+                cout << " - Validation time: " << tm.getTimeSec() << endl;
+
+                ++j;
+            }
+
+            float mean_metric = evaluator.MeanMetric();
+            cout << "----------------------------" << endl;
+            cout << "Mean Dice Coefficient: " << mean_metric << endl;
+            cout << "----------------------------" << endl;
+
+            if (mean_metric > best_metric) {
+                cout << "Saving weights..." << endl;
+                save_net_to_onnx_file(s.net, (s.checkpoint_dir / path("ms_segmentation_checkpoint_epoch_" + to_string(i) + ".onnx")).string());
+                best_metric = mean_metric;
+            }
+
+            // Save metric values on file
+            of.open("output_evaluate_ms_segmentation.txt", ios::out | ios::app);
+            of << "Epoch " << i << " - Mean Dice Coefficient: " << evaluator.MeanMetric() << endl;
+            of.close();
+        }
+    }
+    if (s.do_test) {
+        cout << "Starting test:" << endl;
+        d.SetSplit(SplitType::test);
+
+        auto current_path{ s.result_dir / path("testing_") };
         if (s.save_images) {
             create_directory(current_path);
         }
 
-        d.SetSplit(SplitType::training);
+        v.Reset();
+        evaluator.ResetEval();
 
-        // Reset errors
-        reset_loss(s.net);
-
-        // Shuffle training list
-        shuffle(d.GetSplit().begin(), d.GetSplit().end(), g);
-
-        // Feed batches to the model
+        // Testing for each batch
         int j = 0, old_volume = 0;
         while (true) {
             tm.reset();
@@ -213,47 +354,9 @@ int main(int argc, char* argv[])
                 old_volume = v.current_volume_;
             }
 
-            cout << "Epoch " << i << "/" << s.epochs - 1 << \
-                " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
-                " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
-
-            tm.stop();
-            cout << " - Load time: " << tm.getTimeSec() << " - ";
-            tm.reset();
-            tm.start();
-
-            // Train batch
-            train_batch(s.net, { x }, { y }, indices);
-
-            print_loss(s.net, j);
-            tm.stop();
-            cout << "Train time: " << tm.getTimeSec() << endl;
-            ++j;
-        }
-
-        cout << "Starting validation:" << endl;
-        d.SetSplit(SplitType::validation);
-
-        v.Reset();
-        evaluator.ResetEval();
-
-        // Validation for each batch
-        j = 0, old_volume = 0;
-        while (true) {
-            tm.reset();
-            tm.start();
-            if (!v.LoadBatch(x, y)) {
-                break; // All volumes have been processed
-            }
-
-            if (old_volume != v.current_volume_) {
-                j = 0; // Current volume ended
-                old_volume = v.current_volume_;
-            }
-
-            cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << \
-                " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1 << \
-                " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
+            cout << "Testing "
+                << " - volume " << v.current_volume_ << "/" << vsize(d.GetSplit()) - 1
+                << " - batch " << j << "/" << v.slices_ / (v.n_channels_ * d.batch_size_) - 1;
 
             tm.stop();
             cout << " - Load time: " << tm.getTimeSec() << " - ";
@@ -265,6 +368,13 @@ int main(int argc, char* argv[])
 
             // Compute Dice metric and optionally save the output images
             for (int k = 0; k < s.batch_size; ++k) {
+
+                tensor input_image = x->select({ to_string(k) });
+                //input_image->print();
+                TensorToImage(input_image, input_image_ecvl);
+                input_image_ecvl.colortype_ = ColorType::GRAY;
+                input_image_ecvl.channels_ = "xyc";
+
                 tensor pred = output->select({ to_string(k) });
                 TensorToImage(pred, pred_ecvl);
                 pred_ecvl.colortype_ = ColorType::GRAY;
@@ -276,6 +386,7 @@ int main(int argc, char* argv[])
                 gt_ecvl.channels_ = "xyc";
 
                 for (int m = 0; m < s.n_channels; ++m) {
+                    View<DataType::float32> view_input_image(input_image_ecvl, { 0, 0, m }, { input_image_ecvl.Width(), input_image_ecvl.Height(), 1 });
                     View<DataType::float32> view(pred_ecvl, { 0, 0, m }, { pred_ecvl.Width(), pred_ecvl.Height(), 1 });
                     View<DataType::float32> view_gt(gt_ecvl, { 0, 0, m }, { gt_ecvl.Width(), gt_ecvl.Height(), 1 });
 
@@ -283,36 +394,28 @@ int main(int argc, char* argv[])
                     cout << "- Dice: " << evaluator.DiceCoefficient(view, view_gt) << " ";
 
                     if (s.save_images) {
+                        //Mul(input_image_ecvl, 255, input_image_ecvl);
                         Mul(gt_ecvl, 255, gt_ecvl);
                         Mul(pred_ecvl, 255, pred_ecvl);
+                        ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + "-img.png"), view_input_image);
                         ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view);
                         ImWrite(current_path / path(v.names_[1] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + ".png"), view_gt);
                     }
                 }
+                delete input_image;
                 delete pred;
                 delete gt;
             }
             tm.stop();
-            cout << " - Validation time: " << tm.getTimeSec() << endl;
+            cout << " - Testing time: " << tm.getTimeSec() << endl;
 
             ++j;
         }
 
         float mean_metric = evaluator.MeanMetric();
         cout << "----------------------------" << endl;
-        cout << "Mean Dice Coefficient: " << mean_metric << endl;
+        cout << "Mean Dice Coefficient in test: " << mean_metric << endl;
         cout << "----------------------------" << endl;
-
-        if (mean_metric > best_metric) {
-            cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path("ms_segmentation_checkpoint_epoch_" + to_string(i) + ".onnx")).string());
-            best_metric = mean_metric;
-        }
-
-        // Save metric values on file
-        of.open("output_evaluate_ms_segmentation.txt", ios::out | ios::app);
-        of << "Epoch " << i << " - Mean Dice Coefficient: " << evaluator.MeanMetric() << endl;
-        of.close();
     }
 
     delete x;
