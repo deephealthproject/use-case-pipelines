@@ -342,6 +342,65 @@ layer UNetWithPaddingBN(layer x, const int& num_classes)
     return x;
 }
 
+layer UNetWithPaddingBN_v001(layer x, const int& num_classes)
+{
+    layer x1_3, x1_5, x1_7;
+    layer x1;
+    layer x2;
+    layer x3;
+    layer x4;
+    layer x5;
+    layer y;
+
+    x1_3 = ReLu(BatchNormalization(Conv(x, 32, {3,3}, {1,1}, "same")));
+    x1_5 = ReLu(BatchNormalization(Conv(x, 32, {5,5}, {1,1}, "same")));
+    x1_7 = ReLu(BatchNormalization(Conv(x, 32, {7,7}, {1,1}, "same")));
+
+    x1 = Concat({x1_3, x1_5, x1_7});
+
+    x1 = ReLu(BatchNormalization(Conv(x1, 96, {3,3}, {1,1}, "same")));
+
+    x2 = MaxPool(x1, {2,2}, {2,2});
+    x2 = ReLu(BatchNormalization(Conv(x2, 96, {3,3}, {1,1}, "same")));
+    x2 = ReLu(BatchNormalization(Conv(x2, 96, {3,3}, {1,1}, "same")));
+
+    x3 = MaxPool(x2, {2,2}, {2,2});
+    x3 = ReLu(BatchNormalization(Conv(x3, 128, {3,3}, {1,1}, "same")));
+    x3 = ReLu(BatchNormalization(Conv(x3, 128, {3,3}, {1,1}, "same")));
+
+    x4 = MaxPool(x3, {2,2}, {2,2});
+    x4 = ReLu(BatchNormalization(Conv(x4, 256, {3,3}, {1,1}, "same")));
+    x4 = ReLu(BatchNormalization(Conv(x4, 256, {3,3}, {1,1}, "same")));
+
+    x5 = MaxPool(x4, {2,2}, {2,2});
+    x5 = ReLu(BatchNormalization(Conv(x5, 512, {3,3}, {1,1}, "same")));
+    x5 = ReLu(BatchNormalization(Conv(x5, 512, {3,3}, {1,1}, "same")));
+    x5 = BatchNormalization(Conv(UpSampling(x5, {2,2}), 256, {2,2}, {1, 1}, "same"));
+
+    x4 = Concat({x4, x5});
+    x4 = ReLu(BatchNormalization(Conv(x4, 256, {3,3}, {1,1}, "same")));
+    x4 = ReLu(BatchNormalization(Conv(x4, 256, {3,3}, {1,1}, "same")));
+    x4 = BatchNormalization(Conv(UpSampling(x4, {2,2}), 128, {2,2}, {1,1}, "same"));
+
+    x3 = Concat({x3,x4});
+    x3 = ReLu(BatchNormalization(Conv(x3, 128, {3,3}, {1,1}, "same")));
+    x3 = ReLu(BatchNormalization(Conv(x3, 128, {3,3}, {1,1}, "same")));
+    x3 = BatchNormalization(Conv(UpSampling(x3, {2,2}), 96, {2,2}, {1, 1}, "same"));
+
+    x2 = Concat({x2,x3});
+    x2 = ReLu(BatchNormalization(Conv(x2, 96, { 3,3 }, { 1, 1 }, "same")));
+    x2 = ReLu(BatchNormalization(Conv(x2, 96, { 3,3 }, { 1, 1 }, "same")));
+    x2 = BatchNormalization(Conv(UpSampling(x2, {2,2}), 96, {2,2}, {1,1}, "same"));
+
+    x1 = Concat({x1,x2});
+    x1 = ReLu(BatchNormalization(Conv(x1, 64, {3,3}, {1,1}, "same")));
+    x1 = ReLu(BatchNormalization(Conv(x1, 64, {3,3}, {1,1}, "same")));
+    y = Conv(x1, num_classes, {1,1});
+    y = Sigmoid(y);
+
+    return y;
+}
+
 layer ResNet_01(layer x, const int& num_classes)
 {
     layer l, l0, l1, l2, l3;

@@ -18,6 +18,7 @@ eddl::layer SegNetBN(eddl::layer x, const int& num_classes);
 // Model U-Net (https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net)
 eddl::layer UNetWithPadding(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPaddingBN(eddl::layer x, const int& num_classes);
+eddl::layer UNetWithPaddingBN_v001(eddl::layer x, const int& num_classes);
 
 // Nabla-net (https://www.hal.inserm.fr/inserm-01397806/file/MSSEG_Challenge_Proceedings.pdf 37-43)
 eddl::layer Nabla(eddl::layer x, const int& num_classes);

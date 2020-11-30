@@ -97,6 +97,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = UNetWithPadding(in, s.num_classes);
         } else if (!s.model.compare("UNetWithPaddingBN")) {
             out = UNetWithPaddingBN(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v001")) {
+            out = UNetWithPaddingBN_v001(in, s.num_classes);
         } else if (!s.model.compare("Nabla")) {
             out = Nabla(in, s.num_classes);
         } else if (!s.model.compare("LeNet")) {
@@ -111,7 +113,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = ResNet_01(in, s.num_classes);
         } else {
             cout << ECVL_ERROR_MSG
-                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, Nabla for segmentation;"
+                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, UNetWithPaddingBN_v001, Nabla for segmentation;"
                     "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
             return EXIT_FAILURE;
         }
