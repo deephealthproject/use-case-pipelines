@@ -99,6 +99,10 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = UNetWithPaddingBN(in, s.num_classes);
         } else if (!s.model.compare("UNetWithPaddingBN_v001")) {
             out = UNetWithPaddingBN_v001(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v002")) {
+            out = UNetWithPaddingBN_v002(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v003")) {
+            out = UNetWithPaddingBN_v003(in, s.num_classes);
         } else if (!s.model.compare("Nabla")) {
             out = Nabla(in, s.num_classes);
         } else if (!s.model.compare("LeNet")) {
