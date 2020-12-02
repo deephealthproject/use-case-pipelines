@@ -1,4 +1,4 @@
-## Scripts for installing and compiling all the components for completing the pipeline
+# Scripts for installing and compiling all the components for completing the pipeline
 
 The following described steps asume the pipeline repository was already downloaded
 in  `${HOME}/temp/use_case_pipeline`
