@@ -95,11 +95,13 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     -g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
     --lsb               How many batches are processed before synchronizing the model weights (default: 1)
     -m, --mem           CS memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
-    --save_images       Save validation images or not (default: false)
+    --save_images       If present, save validation images (default: false)
     -r, --result_dir    Directory where the output images will be stored (default: ../output_images)
     --checkpoint_dir    Directory where the checkpoints will be stored (default: ../checkpoints)
     -d, --dataset_path  Dataset path (mandatory)
     -c, --checkpoint    Path to the ONNX checkpoint file (optional)
+    --do_not_train      If present, do not perform train (default: false)
+    --do_test           If present, perform test (default: false)
     -h, --help          Print usage
     
 ### Output example

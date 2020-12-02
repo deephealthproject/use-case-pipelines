@@ -24,6 +24,8 @@ struct Settings
     eddl::compserv cs;
     Net *net;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
+    bool do_training;
+    bool do_test;
 };
 
 bool TrainingOptions(int argc, char *argv[], Settings& s);

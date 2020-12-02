@@ -32,6 +32,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
              cxxopts::value<path>()->default_value("../checkpoints"))
             ("d,dataset_path", "Dataset path", cxxopts::value<path>())
             ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
+            ("do_not_train", "Do not train", cxxopts::value<bool>()->default_value("false"))
+            ("do_test", "Do test or not", cxxopts::value<bool>()->default_value("false"))
             ("h,help", "Print usage");
 
     auto args = options.parse(argc, argv);
@@ -53,6 +55,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
     s.lr = args["learning_rate"].as<float>();
     s.momentum = args["momentum"].as<float>();
     s.random_weights = true;
+    s.do_training = ! args["do_not_train"].as<bool>();
+    s.do_test = args["do_test"].as<bool>();
 
     if (args.count("dataset_path")) {
         s.dataset_path = args["dataset_path"].as<path>();
@@ -93,6 +97,12 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = UNetWithPadding(in, s.num_classes);
         } else if (!s.model.compare("UNetWithPaddingBN")) {
             out = UNetWithPaddingBN(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v001")) {
+            out = UNetWithPaddingBN_v001(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v002")) {
+            out = UNetWithPaddingBN_v002(in, s.num_classes);
+        } else if (!s.model.compare("UNetWithPaddingBN_v003")) {
+            out = UNetWithPaddingBN_v003(in, s.num_classes);
         } else if (!s.model.compare("Nabla")) {
             out = Nabla(in, s.num_classes);
         } else if (!s.model.compare("LeNet")) {
@@ -107,7 +117,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = ResNet_01(in, s.num_classes);
         } else {
             cout << ECVL_ERROR_MSG
-                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, Nabla for segmentation;"
+                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, UNetWithPaddingBN_v001, Nabla for segmentation;"
                     "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
             return EXIT_FAILURE;
         }
@@ -142,6 +152,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
     else {
         cout << "save_images: false\n" << endl;
     }
+    cout << "do_training: " << (s.do_training ? "true" : "false") << endl;
+    cout << "do_test: " << (s.do_test ? "true" : "false") << endl;
 
     return true;
 }
