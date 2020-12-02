@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
     auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size),
                                                                       //AugMirror(.5),
                                                                       //AugFlip(.5),
-                                                                      AugRotate({ -30, 30 }));
+                                                                      AugRotate({ -180, 180 }));
                                                                       //AugAdditivePoissonNoise({ 0, 10 }),
                                                                       //AugGaussianBlur({ .0, .8 }),
                                                                       //AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));

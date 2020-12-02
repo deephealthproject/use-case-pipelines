@@ -27,7 +27,7 @@ Please, update the script [env-vars.sh](env-vars.sh) according to your configura
    Run this script from `${HOME}/temp` as `use_case_pipeline/scripts/install-ecvl-from-source.sh`
 
 5. [cmake-pipeline.sh](cmake-pipeline.sh)
-   This script changes the working directory to `${HOME}/temp/use_case_pipeline`
+   This script changes the working directory to `${HOME}/temp/use_case_pipeline`, after that you have to run `make -j$(nproc)`
 
 
 ## Example of launching scripts
