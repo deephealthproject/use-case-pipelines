@@ -143,14 +143,11 @@ int main(int argc, char* argv[])
     setlogfile(s.net, "ms_segmentation");
 
     // Set augmentations for training and validation
-    //auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
-
     auto training_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size),
                                                                       //AugMirror(.5),
                                                                       //AugFlip(.5),
                                                                       AugRotate({ -180, 180 }));
                                                                       //AugAdditivePoissonNoise({ 0, 10 }),
-                                                                      //AugGammaContrast({ .5, 1.5 }),
                                                                       //AugGaussianBlur({ .0, .8 }),
                                                                       //AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
 
@@ -368,7 +365,6 @@ int main(int argc, char* argv[])
 
             // Compute Dice metric and optionally save the output images
             for (int k = 0; k < s.batch_size; ++k) {
-
                 tensor input_image = x->select({ to_string(k) });
                 //input_image->print();
                 TensorToImage(input_image, input_image_ecvl);
@@ -394,7 +390,6 @@ int main(int argc, char* argv[])
                     cout << "- Dice: " << evaluator.DiceCoefficient(view, view_gt) << " ";
 
                     if (s.save_images) {
-                        //Mul(input_image_ecvl, 255, input_image_ecvl);
                         Mul(gt_ecvl, 255, gt_ecvl);
                         Mul(pred_ecvl, 255, pred_ecvl);
                         ImWrite(current_path / path(v.names_[0] + to_string(v.indices_[v.current_slice_ - s.batch_size + k] * v.stride_ + m) + "-img.png"), view_input_image);
