@@ -92,6 +92,7 @@ class MSSegmentationDataset(YAMLSegmentationDataset):
         self.input_image_transform = input_image_transform
         self.mask_transform = mask_transform
         self.vols = []
+        self.vols_path = []
         self.masks = []
         self.n_slices = []
         self.n_slices_cum = []
@@ -112,11 +113,14 @@ class MSSegmentationDataset(YAMLSegmentationDataset):
                 # Open volume and counts its slides
                 vol = nib.load(vol_path)
                 vol = np.array(vol.dataobj, np.float32)
+                vol = vol.transpose(2, 1, 0)
                 gt = nib.load(gt_path)
                 gt = np.array(gt.dataobj, np.float32)
+                gt = gt.transpose(2, 1, 0)
 
                 self.n_slices.append(vol.shape[0])
                 self.vols.append(vol)
+                self.vols_path.append(vol_path)
                 self.masks.append(gt)
         self.n_slices_cum = np.cumsum(self.n_slices)
 
@@ -136,7 +140,7 @@ class MSSegmentationDataset(YAMLSegmentationDataset):
             image = transformed["image"]
             mask = transformed["mask"]
 
-        return image, mask.unsqueeze(0)  # , os.path.basename(self.vols[index])
+        return image, mask.unsqueeze(0), os.path.basename(self.vols_path[vol_index])[:-4] + "_" + str(index)
 
     def __len__(self):
         return self.n_slices_cum[-1]
