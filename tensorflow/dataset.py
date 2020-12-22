@@ -1,9 +1,9 @@
 import os.path
 
-import yaml
 import cv2
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+import yaml
 
 try:
     from yaml import CLoader as Loader
@@ -42,7 +42,7 @@ class ISICClassification:
             self.labels.append(d['images'][i]['label'])
 
     def __len__(self, *args, **kwargs):
-        return len(self.labels)
+        return int(np.ceil(len(self.files) / self.batch_size))
 
     def __call__(self, *args, **kwargs):
         """
@@ -72,12 +72,12 @@ class ISICClassification:
         """
         dataset = tf.data.Dataset.from_tensor_slices(self.__call__())
         if self.shuffle:
-            dataset = dataset.shuffle(len(self), reshuffle_each_iteration=True)
+            dataset = dataset.shuffle(len(self.files))
+        dataset = dataset.repeat(epochs)
         parse_samples = lambda file, label: tf.numpy_function(self.read_samples,
                                                               inp=(file, label),
                                                               Tout=(tf.float32, tf.uint8))
         dataset = dataset.map(parse_samples, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.repeat(epochs)
-        dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+        dataset = dataset.prefetch(self.batch_size)
         return dataset

@@ -104,8 +104,8 @@ def main(args):
             verbose=1,
             callbacks=[checkpoint, early, tensorboard],
             validation_data=validation_tfdata,
-            steps_per_epoch=len(training_dataset) // args.batch_size,
-            validation_steps=len(validation_dataset) // args.batch_size,
+            steps_per_epoch=len(training_dataset),
+            validation_steps=len(validation_dataset),
         )
 
     if args.test:

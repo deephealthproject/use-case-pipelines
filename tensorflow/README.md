@@ -10,7 +10,8 @@ The repository has the following structure:
 |
 |- dataset.py  # Loads a `tf.data.Dataset` and applies augmentations
 |- models.py  # Lists some neural network models
-|- skin_lesion_classification_training.py  # Main file that performs training
+|- skin_lesion_classification_training.py  # Main file that performs training using custom training loop
+|- skin_lesion_classification_training.py  # Main file that uses fit
 |- keras_sequence  # Contains scripts which use `keras.utils.Sequence`, instead of `tf.data.Dataset` 
 ```
 
@@ -18,7 +19,7 @@ The repository has the following structure:
 The ISIC dataset must be downloaded following instructions in the main [README](../README.md).  
 
 Build and run:
-```shell
+```bash
 cd tensorflow
 virtualenv tf_pipeline
 source tf_pipeline/bin/activate
