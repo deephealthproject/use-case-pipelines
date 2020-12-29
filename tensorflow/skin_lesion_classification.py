@@ -7,27 +7,16 @@ import random
 import sys
 from datetime import datetime
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 import imgaug.augmenters as iaa
 import numpy as np
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import optimizers
 
 import models
-from dataset import ISICClassification
-from datetime import datetime
-import io
-import itertools
-from six.moves import range
-
-import tensorflow as tf
-from tensorflow import keras
-
-import matplotlib.pyplot as plt
-import numpy as np
 import utils
+from dataset import ISICClassification
 
 # Set seed value
 seed_value = 50
@@ -72,7 +61,7 @@ def main(args):
             print(f'Checkpoints `{args.checkpoints}` not found', file=sys.stderr)
 
     os.makedirs("logs/scalars/", exist_ok=True)
-    logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S") + f"-{args.name}"
     summary_writer = tf.summary.create_file_writer(logdir)
 
     if args.train:
@@ -85,7 +74,7 @@ def main(args):
             iaa.AdditivePoissonNoise(lam=(0, 10)),
             iaa.GammaContrast(gamma=(.8, 1.5)),
             iaa.GaussianBlur(sigma=(.0, .8)),
-            iaa.CoarseDropout(p=(.02, .1), size_px=(0.02, 0.05), size_percent=0.5),
+            iaa.CoarseDropout(p=(.02, .1), size_percent=(0.02, 0.05), per_channel=0.5),
         ])
 
         val_aug = iaa.Sequential([iaa.Resize(size=size[:-1], interpolation='cubic')])
@@ -135,9 +124,9 @@ def main(args):
 
             cm = utils.calculate_confusion_matrix(tf.concat(total_labels, axis=0), tf.concat(total_preds, axis=0))
             with summary_writer.as_default():
-                tf.summary.scalar(train_loss.name, train_loss.result(), step=e - 1)
-                tf.summary.scalar(train_metric.name, train_metric.result(), step=e - 1)
-                tf.summary.image("Training Confusion Matrix", cm, step=e)
+                tf.summary.scalar('loss/' + train_loss.name, train_loss.result(), step=e - 1)
+                tf.summary.scalar('accuracy/' + train_metric.name, train_metric.result(), step=e - 1)
+                tf.summary.image("cm/training_cm", cm, step=e)
 
             total_preds = []
             total_labels = []
@@ -153,8 +142,8 @@ def main(args):
 
             cm = utils.calculate_confusion_matrix(tf.concat(total_labels, axis=0), tf.concat(total_preds, axis=0))
             with summary_writer.as_default():
-                tf.summary.scalar(val_metric.name, val_metric.result(), step=e - 1)
-                tf.summary.image("Validation Confusion Matrix", cm, step=e)
+                tf.summary.scalar('accuracy/' + val_metric.name, val_metric.result(), step=e - 1)
+                tf.summary.image("cm/validation_cm", cm, step=e)
 
             # Compute accuracy and save checkpoints
             accuracy = val_metric.result()

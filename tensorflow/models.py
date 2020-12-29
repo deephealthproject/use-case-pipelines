@@ -1,11 +1,12 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers, Model
+from tensorflow.keras import Model, layers
 
 
 def resnet50(input_shape, num_classes, classifier_activation=None):
-    features = keras.applications.ResNet50V2(include_top=False, input_shape=input_shape, pooling='avg')
-    features.trainable = False  # Freeze features extractor training
+    features = keras.applications.ResNet50V2(include_top=False, weights='imagenet', input_shape=input_shape,
+                                             pooling='avg')
+    # features.trainable = False  # Freeze features extractor training
     model = keras.Sequential(features)
     # Classification blocks
     model.add(layers.Flatten())
@@ -15,7 +16,7 @@ def resnet50(input_shape, num_classes, classifier_activation=None):
 
 def vgg16(input_shape, num_classes, classifier_activation=None):
     features = keras.applications.VGG16(include_top=False, input_shape=input_shape)
-    features.trainable = False
+    # features.trainable = False
     model = keras.Sequential(features)
     # Classification block
     model.add(layers.Flatten())
