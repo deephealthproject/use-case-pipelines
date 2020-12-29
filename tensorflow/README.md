@@ -1,4 +1,4 @@
-# Tensorflow pipeline implementation
+# TensorFlow pipeline implementation
 
 This folder contains a classification example, using the [DeepHealth Toolkit Dataset Format](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format).
 
@@ -28,3 +28,13 @@ source tf_pipeline/bin/activate
 pip install -r requirements.txt
 python skin_lesion_classification.py path/to/isic_classification.yml -e 100 -b 24 -l 1e-4 --name isic_class_resnet --do-test
 ```
+
+_Checkpoints_: [ResNet - Accuracy 0.79](https://drive.google.com/file/d/19XohcJmXVZHMasNKAKOxM23bZxsaXYyI/view?usp=sharing)
+
+#### Monitor results
+```bash
+cd tensorflow
+source tf_pipeline/bin/activate
+tensorboard --logdir logs/scalars --bind_all
+```
+Then navigate to `http://<hostname>:6006` to view losses, metrics and confusion matrices.
