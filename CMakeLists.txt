@@ -64,14 +64,19 @@ add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
 add_library(DATA_GENERATOR STATIC "")
 add_library(UTILS STATIC "")
-add_executable(MNIST_BATCH)
-add_executable(SKIN_LESION_CLASSIFICATION_TRAINING)
-add_executable(SKIN_LESION_SEGMENTATION_TRAINING)
-add_executable(SKIN_LESION_CLASSIFICATION_INFERENCE)
-add_executable(SKIN_LESION_SEGMENTATION_INFERENCE)
-add_executable(PNEUMOTHORAX_SEGMENTATION_TRAINING)
-add_executable(PNEUMOTHORAX_SEGMENTATION_INFERENCE)
-add_executable(COPY_GROUND_TRUTH_PNEUMOTHORAX)
+
+set(PROJECTS 
+    MNIST_BATCH MNIST_BATCH_FASTER 
+    SKIN_LESION_CLASSIFICATION_TRAINING SKIN_LESION_CLASSIFICATION_INFERENCE
+    SKIN_LESION_SEGMENTATION_TRAINING SKIN_LESION_SEGMENTATION_INFERENCE
+    PNEUMOTHORAX_SEGMENTATION_TRAINING PNEUMOTHORAX_SEGMENTATION_INFERENCE
+    COPY_GROUND_TRUTH_PNEUMOTHORAX
+    )
+
+foreach(P ${PROJECTS})
+    add_executable(${P})
+endforeach()
+
 add_subdirectory(cpp)
 add_subdirectory("cpp/metrics")
 add_subdirectory("cpp/models")
@@ -97,13 +102,11 @@ if(ecvl_FOUND)
     target_link_libraries(DATA_GENERATOR METRICS)
     target_link_libraries(MODELS DATA_GENERATOR)
     target_link_libraries(UTILS MODELS)
-    target_link_libraries(MNIST_BATCH UTILS)
-    target_link_libraries(SKIN_LESION_CLASSIFICATION_TRAINING UTILS)
-    target_link_libraries(SKIN_LESION_SEGMENTATION_TRAINING UTILS)
-    target_link_libraries(SKIN_LESION_CLASSIFICATION_INFERENCE UTILS)
-    target_link_libraries(SKIN_LESION_SEGMENTATION_INFERENCE UTILS)
-    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_TRAINING UTILS)
-    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_INFERENCE UTILS)
+    
+    foreach(P ${PROJECTS})
+        target_link_libraries(${P} UTILS)
+    endforeach()
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         target_link_libraries(COPY_GROUND_TRUTH_PNEUMOTHORAX stdc++fs)
     endif()

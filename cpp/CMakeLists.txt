@@ -1,6 +1,9 @@
 target_sources(MNIST_BATCH PRIVATE
         mnist_batch.cpp
 )
+target_sources(MNIST_BATCH_FASTER PRIVATE
+        mnist_batch_faster.cpp
+)
 target_sources(SKIN_LESION_CLASSIFICATION_TRAINING PRIVATE
         skin_lesion_classification_training.cpp
 )

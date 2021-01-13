@@ -7,31 +7,31 @@ using namespace std;
 using namespace eddl;
 using namespace ecvl::filesystem;
 
-bool TrainingOptions(int argc, char *argv[], Settings& s)
+bool TrainingOptions(int argc, char* argv[], Settings& s)
 {
     cxxopts::Options options("DeepHealth pipeline", "");
 
     options.add_options()
-            ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
-            ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
-            ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
-            ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
-            ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("192,192"))
-            ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
-            ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value("0.0001"))
-            ("momentum", "Momentum", cxxopts::value<float>()->default_value("0.9"))
-            ("model", "Model of the network", cxxopts::value<string>()->default_value("SegNetBN"))
-            ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
-            ("lsb", "How many batches are processed before synchronizing the model weights",
-             cxxopts::value<int>()->default_value("1"))
-            ("m,mem", "GPU memory usage configuration", cxxopts::value<string>()->default_value("low_mem"))
-            ("r,result_dir", "Directory where the output images are stored",
-             cxxopts::value<path>()->default_value("../output_images"))
-            ("checkpoint_dir", "Directory where the checkpoints are stored",
-             cxxopts::value<path>()->default_value("../checkpoints"))
-            ("d,dataset_path", "Dataset path", cxxopts::value<path>())
-            ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
-            ("h,help", "Print usage");
+        ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
+        ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
+        ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
+        ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
+        ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("192,192"))
+        ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
+        ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value("0.0001"))
+        ("momentum", "Momentum", cxxopts::value<float>()->default_value("0.9"))
+        ("model", "Model of the network", cxxopts::value<string>()->default_value("SegNetBN"))
+        ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
+        ("lsb", "How many batches are processed before synchronizing the model weights",
+            cxxopts::value<int>()->default_value("1"))
+        ("m,mem", "GPU memory usage configuration", cxxopts::value<string>()->default_value("low_mem"))
+        ("r,result_dir", "Directory where the output images are stored",
+            cxxopts::value<path>()->default_value("../output_images"))
+        ("checkpoint_dir", "Directory where the checkpoints are stored",
+            cxxopts::value<path>()->default_value("../checkpoints"))
+        ("d,dataset_path", "Dataset path", cxxopts::value<path>())
+        ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
+        ("h,help", "Print usage");
 
     auto args = options.parse(argc, argv);
 
@@ -78,8 +78,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
         string checkpoint = args["checkpoint"].as<string>();
         s.net = import_net_from_onnx_file(checkpoint);
         cout << "pretrained weight: " << checkpoint << "\n";
-    }
-    else { // Define the network
+    } else { // Define the network
         layer in, out;
         in = Input({ 3, s.size[0], s.size[1] });
 
@@ -103,8 +102,8 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
             out = ResNet_01(in, s.num_classes);
         } else {
             cout << ECVL_ERROR_MSG
-                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN for segmentation;"
-                    "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
+                << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN for segmentation;"
+                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
             return EXIT_FAILURE;
         }
 
@@ -117,12 +116,11 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
         s.gpu = args["gpu"].as<vector<int>>();
         s.cs = CS_GPU(s.gpu, s.lsb, s.mem);
         cout << "Model running on GPU: {";
-        for (auto &x : s.gpu) {
+        for (auto& x : s.gpu) {
             cout << x << ",";
         }
         cout << "}\n";
-    }
-    else {
+    } else {
         s.cs = CS_CPU(s.lsb, s.mem);
         cout << "Model running on CPU\n";
     }
@@ -134,8 +132,7 @@ bool TrainingOptions(int argc, char *argv[], Settings& s)
         create_directory(s.result_dir);
         cout << "save_images: true\n";
         cout << "result output folder: " << s.result_dir << "\n";
-    }
-    else {
+    } else {
         cout << "save_images: false\n" << endl;
     }
 

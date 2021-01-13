@@ -16,19 +16,20 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     Settings s;
-    if(!TrainingOptions(argc, argv, s)) {
+    if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
 
     // Build model
     build(s.net,
-          adam(s.lr),                 // Optimizer
-          { s.loss },                 // Loss
-          { "mean_squared_error" }, // Metric
-          s.cs,                       // Computing Service
-          s.random_weights            // Randomly initialize network weights
+        adam(s.lr),                 // Optimizer
+        { s.loss },                 // Loss
+        { "mean_squared_error" }, // Metric
+        s.cs,                       // Computing Service
+        s.random_weights            // Randomly initialize network weights
     );
 
     // View model
@@ -37,18 +38,18 @@ int main(int argc, char *argv[]) {
     setlogfile(s.net, "skin_lesion_segmentation");
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
-            AugResizeDim(s.size),
-            AugMirror(.5),
-            AugFlip(.5),
-            AugRotate({ -180, 180 }),
-            AugAdditivePoissonNoise({ 0, 10 }),
-            AugGammaContrast({ .5, 1.5 }),
-            AugGaussianBlur({ .0, .8 }),
-            AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+        AugResizeDim(s.size),
+        AugMirror(.5),
+        AugFlip(.5),
+        AugRotate({ -180, 180 }),
+        AugAdditivePoissonNoise({ 0, 10 }),
+        AugGammaContrast({ .5, 1.5 }),
+        AugGaussianBlur({ .0, .8 }),
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
-    DatasetAugmentations dataset_augmentations{{ training_augs, validation_augs, nullptr }};
+    DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
@@ -131,7 +132,7 @@ int main(int argc, char *argv[]) {
         cout << "Starting validation:" << endl;
         for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
             cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
-                 << ") ";
+                << ") ";
 
             tensor x, y;
 
@@ -173,7 +174,7 @@ int main(int argc, char *argv[]) {
                         FindContours(tmp, contours);
                         CopyImage(orig_img_t, tmp, DataType::uint8);
 
-                        for (auto &contour : contours) {
+                        for (auto& contour : contours) {
                             for (auto c : contour) {
                                 *tmp.Ptr({ c[0], c[1], 0 }) = 0;
                                 *tmp.Ptr({ c[0], c[1], 1 }) = 0;
@@ -209,7 +210,7 @@ int main(int argc, char *argv[]) {
 
         if (mean_metric > best_metric) {
             cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, s.checkpoint_dir / path("isic_segmentation_checkpoint_epoch_" + to_string(i) + ".onnx"));
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path("isic_segmentation_checkpoint_epoch_" + to_string(i) + ".onnx")).string());
             best_metric = mean_metric;
         }
 

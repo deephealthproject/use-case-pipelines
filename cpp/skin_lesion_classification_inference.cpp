@@ -26,11 +26,11 @@ int main()
 
     // Build model
     build(net,
-          sgd(0.001f, 0.9f),          // Optimizer
-          { "soft_cross_entropy" },   // Losses
-          { "categorical_accuracy" }, // Metrics
-          CS_GPU({1}, 1, "low_mem"),  // Computing Service
-          false                       // Randomly initialize network weights
+        sgd(0.001f, 0.9f),          // Optimizer
+        { "soft_cross_entropy" },   // Losses
+        { "categorical_accuracy" }, // Metrics
+        CS_GPU({ 1 }, 1, "low_mem"),  // Computing Service
+        false                       // Randomly initialize network weights
     );
 
     // View model
@@ -117,14 +117,13 @@ int main()
                     path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
 
                     path cur_path = result_dir / d.classes_[classe] /
-                                    filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
+                        filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
                     ImWrite(cur_path, img_t);
                     delete single_image;
                 }
 
                 delete result;
                 delete target;
-
             }
             delete x;
             delete y;

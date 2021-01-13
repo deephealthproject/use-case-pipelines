@@ -24,7 +24,7 @@ git clone --recurse-submodule https://github.com/deephealthproject/eddl.git
 cd eddl
 git checkout tags/v0.8.3a REM Latest release
 mkdir build & cd build
-cmake -G "%GENERATOR%" -A x64 -DBUILD_TARGET=%DEVICE% -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "%GENERATOR%" -A x64 -DBUILD_TARGET=%DEVICE% -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DBUILD_HPC=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config %BUILD_TYPE% --parallel %PROC% --target INSTALL
 set EDDL_INSTALL_DIR=%UCP_PATH%/%DEPENDENCIES_DIR%/eddl/build/install
 
