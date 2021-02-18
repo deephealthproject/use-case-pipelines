@@ -5,8 +5,8 @@ on: [push, pull_request]
 env:
   BUILD_TYPE: Release
   CMAKE_GENERATOR: "Unix Makefiles"
-  ECVL_VERSION: "v0.2.3"
-  EDDL_VERSION: "v0.8a"
+  ECVL_VERSION: "v0.3.1"
+  EDDL_VERSION: "v0.9a"
   PROC: 2
 # OPENCV_VERSION: "3.4.12"
 
@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ runner.workspace }}/deps_install
-          key: ${{ runner.os }}-deps-cache
+          key: ${{ runner.os }}-${{ env.EDDL_VERSION }}-cache-deps
 
       - name: Install dependencies
         env:

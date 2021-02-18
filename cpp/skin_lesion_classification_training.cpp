@@ -40,8 +40,10 @@ int main(int argc, char* argv[])
     );
 
     initializeLayer(s.net, "newdense");
-    for (auto l : s.net->layers)
-        setTrainable(s.net, l->name, false);
+    for (auto l : s.net->layers) {
+        if (l->name != "newdense")
+            setTrainable(s.net, l->name, false);
+    }
 
     // View model
     summary(s.net);
@@ -93,7 +95,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < s.epochs; ++i) {
         tm_epoch.reset();
         tm_epoch.start();
-
+        
         auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
         if (s.save_images) {
             for (const auto& c : d.classes_) {
