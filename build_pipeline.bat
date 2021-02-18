@@ -5,7 +5,7 @@ set DEVICE=GPU
 set BUILD_TYPE=Release
 REM set BUILD_TYPE=Debug
 set DEPENDENCIES_DIR=deephealth_win
-set OPENCV_VERSION=4.5.0
+set OPENCV_VERSION=4.5.1
 set /a PROC=%NUMBER_OF_PROCESSORS%-1
 
 echo The default CMAKE_GENERATOR is "%GENERATOR%".
@@ -20,9 +20,10 @@ echo Building Pipeline for CMAKE_GENERATOR: "%GENERATOR%".
 mkdir %DEPENDENCIES_DIR% & cd %DEPENDENCIES_DIR%
 
 REM EDDL
-git clone --recurse-submodule https://github.com/deephealthproject/eddl.git
+git clone https://github.com/deephealthproject/eddl.git
 cd eddl
-git checkout tags/v0.8.3a REM Latest release
+REM Latest release
+git checkout tags/v0.9a
 mkdir build & cd build
 cmake -G "%GENERATOR%" -A x64 -DBUILD_TARGET=%DEVICE% -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DBUILD_HPC=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config %BUILD_TYPE% --parallel %PROC% --target INSTALL

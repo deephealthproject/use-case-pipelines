@@ -332,3 +332,43 @@ layer ResNet_01(layer x, const int& num_classes)
 
     return l;
 }
+
+layer BottleNeck(layer x, int planes, int stride, bool downsample = false)
+{
+    layer identity = x;
+    // in_layer, out_channels, kernel, stride, padding, bias, groups, dilation
+    x = BatchNormalization(Conv(x, planes, { 1,1 }, { 1,1 }, "same", false));
+    x = BatchNormalization(Conv(x, planes, { 3,3 }, { stride,stride }, "same", false));
+    x = ReLu(BatchNormalization(Conv(x, planes * 4, { 1,1 }, { 1,1 }, "same", false)));
+    if (downsample) {
+        identity = BatchNormalization(Conv(identity, planes * 4, { 1,1 }, { stride,stride }, "same", false));
+    }
+    return ReLu(Add({ identity, x }));
+}
+
+layer MakeResnet(layer x, const vector<pair<int, int>>& filters)
+{
+    x = ReLu(BatchNormalization(Conv(x, 64, { 7, 7 }, { 2, 2 }, "same", false)));
+    x = MaxPool(x, { 3, 3 }, { 2, 2 }, "same");
+    int i = 0;
+    for (const auto& blocks : filters) {
+        x = BottleNeck(x, blocks.second, 2 - (i == 0), true);
+        for (i = 1; i < blocks.first; ++i) {
+            x = BottleNeck(x, blocks.second, 1);
+        }
+    }
+    x = AveragePool(x, { 7,7 }, { 1, 1 });
+    x = Reshape(x, { -1 });
+    return x;
+}
+
+layer ResNet50(layer x, const int& num_classes)
+{
+    vector<pair<int, int>> filters{ { 3, 64 },
+                                  { 4, 128 },
+                                  { 6, 256 },
+                                  { 3, 512 } };
+    x = MakeResnet(x, filters);
+    x = Softmax(Dense(x, num_classes));
+    return x;
+}

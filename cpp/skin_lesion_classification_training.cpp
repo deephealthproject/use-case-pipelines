@@ -19,18 +19,29 @@ int main(int argc, char* argv[])
 {
     // Settings
     Settings s;
-    if(!TrainingOptions(argc, argv, s)) {
+    if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
 
+    // onnx resnet50
+    removeLayer(s.net, "resnetv17_dense0_fwd");
+    auto top = getLayer(s.net, "flatten_473");
+    layer out = Softmax(Dense(top, 8, true, "newdense")); // true is for the bias.
+    auto data_input = getLayer(s.net, "data");
+    s.net = Model({ data_input }, { out });
+
     // Build model
     build(s.net,
-          sgd(s.lr, s.momentum),      // Optimizer
-          { s.loss },                 // Loss
-          { "categorical_accuracy" }, // Metric
-          s.cs,                       // Computing Service
-          s.random_weights            // Randomly initialize network weights
+        sgd(s.lr, s.momentum),      // Optimizer
+        { s.loss },                 // Loss
+        { "categorical_accuracy" }, // Metric
+        s.cs,                       // Computing Service
+        s.random_weights            // Randomly initialize network weights
     );
+
+    initializeLayer(s.net, "newdense");
+    for (auto l : s.net->layers)
+        setTrainable(s.net, l->name, false);
 
     // View model
     summary(s.net);
@@ -38,18 +49,18 @@ int main(int argc, char* argv[])
     setlogfile(s.net, "skin_lesion_classification");
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
-            AugResizeDim(s.size),
-            AugMirror(.5),
-            AugFlip(.5),
-            AugRotate({ -180, 180 }),
-            AugAdditivePoissonNoise({ 0, 10 }),
-            AugGammaContrast({ .5, 1.5 }),
-            AugGaussianBlur({ .0, .8 }),
-            AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+        AugResizeDim(s.size),
+        AugMirror(.5),
+        AugFlip(.5),
+        AugRotate({ -180, 180 }),
+        AugAdditivePoissonNoise({ 0, 10 }),
+        AugGammaContrast({ .5, 1.5 }),
+        AugGaussianBlur({ .0, .8 }),
+        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
-    DatasetAugmentations dataset_augmentations{{ training_augs, validation_augs, nullptr }};
+    DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
@@ -85,7 +96,7 @@ int main(int argc, char* argv[])
 
         auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
         if (s.save_images) {
-            for (const auto &c : d.classes_) {
+            for (const auto& c : d.classes_) {
                 create_directories(current_path / path(c));
             }
         }
@@ -140,7 +151,7 @@ int main(int argc, char* argv[])
         cout << "Starting validation:" << endl;
         for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
             cout << "Validation: Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
-                 << ") - ";
+                << ") - ";
 
             tensor x, y;
 
@@ -186,7 +197,7 @@ int main(int argc, char* argv[])
                         path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
 
                         path cur_path = current_path / d.classes_[classe] /
-                                        filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
+                            filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
                         ImWrite(cur_path, img_t);
                         delete single_image;
                     }

@@ -20,5 +20,6 @@ eddl::layer UNetWithPadding(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPaddingBN(eddl::layer x, const int& num_classes);
 
 eddl::layer ResNet_01(eddl::layer x, const int& num_classes);
+eddl::layer ResNet50(eddl::layer x, const int& num_classes);
 
 #endif // MODELS_H_
