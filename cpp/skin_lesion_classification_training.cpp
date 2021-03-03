@@ -18,32 +18,37 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Settings
-    Settings s;
+    Settings s(8, { 224,224 }, "ResNet50", "sce", 0.0001f, 0.9f);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
+    int workers = 2;
+
 
     // onnx resnet50
-    removeLayer(s.net, "resnetv17_dense0_fwd");
-    auto top = getLayer(s.net, "flatten_473");
-    layer out = Softmax(Dense(top, 8, true, "newdense")); // true is for the bias.
+    //removeLayer(s.net, "resnetv17_dense0_fwd");
+    removeLayer(s.net, "resnetv25_dense0_fwd");
+    //auto top = getLayer(s.net, "flatten_473");
+    auto top = getLayer(s.net, "resnetv25_flatten0_reshape0");
+    layer out = Softmax(Dense(top, s.num_classes, true, "classifier")); // true is for the bias.
     auto data_input = getLayer(s.net, "data");
     s.net = Model({ data_input }, { out });
 
     // Build model
     build(s.net,
-        sgd(s.lr, s.momentum),      // Optimizer
+        adam(s.lr),      // Optimizer
         { s.loss },                 // Loss
         { "categorical_accuracy" }, // Metric
         s.cs,                       // Computing Service
         s.random_weights            // Randomly initialize network weights
     );
 
-    initializeLayer(s.net, "newdense");
+    initializeLayer(s.net, "classifier");
     for (auto l : s.net->layers) {
-        if (l->name != "newdense")
+        if (l->name != "classifier")
             setTrainable(s.net, l->name, false);
     }
+    auto trainable = false;
 
     // View model
     summary(s.net);
@@ -58,7 +63,8 @@ int main(int argc, char* argv[])
         AugAdditivePoissonNoise({ 0, 10 }),
         AugGammaContrast({ .5, 1.5 }),
         AugGaussianBlur({ .0, .8 }),
-        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+        AugCoarseDropout({ 0, 0.03 }, { 0, 0.05 }, 0.25)
+        );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
 
@@ -66,16 +72,16 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations);
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ecvl::ColorType::RGB);
     // Create producer thread with 'DLDataset d' and 'std::queue q'
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / s.batch_size;
-    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
+    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
 
     d.SetSplit(SplitType::validation);
     int num_samples_validation = vsize(d.GetSplit());
     int num_batches_validation = num_samples_validation / s.batch_size;
-    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
+    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
 
     tensor output, target, result, single_image;
     float sum = 0., ca = 0., best_metric = 0., mean_metric;
@@ -95,7 +101,14 @@ int main(int argc, char* argv[])
     for (int i = 0; i < s.epochs; ++i) {
         tm_epoch.reset();
         tm_epoch.start();
-        
+
+        if (!trainable && i > 4) {
+            trainable = true;
+            for (auto l : s.net->layers) {
+                setTrainable(s.net, l->name, true);
+            }
+        }
+
         auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
         if (s.save_images) {
             for (const auto& c : d.classes_) {
@@ -180,7 +193,7 @@ int main(int argc, char* argv[])
                         float max = std::numeric_limits<float>::min();
                         int classe = -1;
                         int gt_class = -1;
-                        for (int c = 0; c < result->size; ++c) {
+                        for (unsigned c = 0; c < result->size; ++c) {
                             if (result->ptr[c] > max) {
                                 max = result->ptr[c];
                                 classe = c;

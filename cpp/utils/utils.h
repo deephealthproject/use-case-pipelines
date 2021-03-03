@@ -21,10 +21,20 @@ struct Settings
     std::string mem;
     bool random_weights;
     eddl::compserv cs;
-    Net *net;
+    Net* net;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
+
+    Settings() = delete;
+    Settings(int num_classes_,
+        const std::vector<int>& size_,
+        const std::string& model_,
+        const std::string& loss_,
+        const float& lr_,
+        const float& momentum_) :
+        num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), momentum(momentum_)
+    {}
 };
 
-bool TrainingOptions(int argc, char *argv[], Settings& s);
+bool TrainingOptions(int argc, char* argv[], Settings& s);
 
 #endif //UTILS_H

@@ -9,18 +9,22 @@ using namespace ecvl::filesystem;
 
 bool TrainingOptions(int argc, char* argv[], Settings& s)
 {
-    cxxopts::Options options("DeepHealth pipeline", "");
+    std::stringstream result;
+    std::copy(s.size.begin(), s.size.end(), std::ostream_iterator<int>(result, ","));
+    auto size = result.str().substr(0, result.str().size() - 1);
 
+    cxxopts::Options options("DeepHealth pipeline", "");
     options.add_options()
+        ("d,dataset_path", "Dataset path", cxxopts::value<path>())
         ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
         ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
-        ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value("1"))
+        ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value(to_string(s.num_classes)))
         ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
-        ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("192,192"))
-        ("loss", "Loss function", cxxopts::value<string>()->default_value("cross_entropy"))
-        ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value("0.0001"))
-        ("momentum", "Momentum", cxxopts::value<float>()->default_value("0.9"))
-        ("model", "Model of the network", cxxopts::value<string>()->default_value("SegNetBN"))
+        ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value(size))
+        ("loss", "Loss function", cxxopts::value<string>()->default_value(s.loss))
+        ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value(to_string(s.lr)))
+        ("momentum", "Momentum", cxxopts::value<float>()->default_value(to_string(s.momentum)))
+        ("model", "Model of the network", cxxopts::value<string>()->default_value(s.model))
         ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
         ("lsb", "How many batches are processed before synchronizing the model weights",
             cxxopts::value<int>()->default_value("1"))
@@ -29,7 +33,6 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             cxxopts::value<path>()->default_value("../output_images"))
         ("checkpoint_dir", "Directory where the checkpoints are stored",
             cxxopts::value<path>()->default_value("../checkpoints"))
-        ("d,dataset_path", "Dataset path", cxxopts::value<path>())
         ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
         ("h,help", "Print usage");
 
@@ -62,7 +65,6 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     cout << "Options used: \n";
     cout << "epochs: " << s.epochs << "\n";
     cout << "batch_size: " << s.batch_size << "\n";
-    cout << "model: " << s.model << "\n";
     cout << "loss: " << s.loss << "\n";
     cout << "learning rate: " << s.lr << "\n";
     cout << "num_classes: " << s.num_classes << "\n";
@@ -108,6 +110,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         }
 
         s.net = Model({ in }, { out });
+        cout << "model: " << s.model << "\n";
     }
 
     s.lsb = args["lsb"].as<int>();
