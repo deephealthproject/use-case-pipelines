@@ -372,3 +372,26 @@ layer ResNet50(layer x, const int& num_classes)
     x = Softmax(Dense(x, num_classes));
     return x;
 }
+
+
+layer ResNet101(layer x, const int& num_classes)
+{
+    vector<pair<int, int>> filters{ { 3, 64 },
+                                  { 4, 128 },
+                                  { 23, 256 },
+                                  { 3, 512 } };
+    x = MakeResnet(x, filters);
+    x = Softmax(Dense(x, num_classes));
+    return x;
+}
+
+layer ResNet152(layer x, const int& num_classes)
+{
+    vector<pair<int, int>> filters{ { 3, 64 },
+                                  { 8, 128 },
+                                  { 36, 256 },
+                                  { 3, 512 } };
+    x = MakeResnet(x, filters);
+    x = Softmax(Dense(x, num_classes));
+    return x;
+}
