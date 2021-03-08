@@ -1,20 +1,28 @@
 #!/bin/bash
 
 UCP_PATH=$(pwd)
-DEVICE="GPU"
+#DEVICE="GPU"
+DEVICE="CUDNN"
 BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
 DEPENDENCIES_DIR="deephealth_lin"
 OPENCV_VERSION=4.5.1
 PROC=$(($(nproc)-1))
 
+set -e
+set -o pipefail
+
 mkdir -p $DEPENDENCIES_DIR && cd $DEPENDENCIES_DIR
 
 ############ EDDL
-git clone https://github.com/deephealthproject/eddl.git
-cd eddl
-git checkout tags/v0.9.1b
-git apply ${UCP_PATH}/eddl.patch
+if [ ! -d "eddl" ]; then
+  git clone https://github.com/deephealthproject/eddl.git
+  cd eddl
+  git checkout tags/v0.9.1b
+  git apply --ignore-space-change --ignore-whitespace ${UCP_PATH}/eddl.patch
+else
+  cd eddl
+fi
 mkdir -p build && cd build
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_HPC=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
@@ -35,11 +43,14 @@ OPENCV_INSTALL_DIR=$UCP_PATH/$DEPENDENCIES_DIR/opencv-$OPENCV_VERSION/build
 
 ############ ECVL
 cd $UCP_PATH/$DEPENDENCIES_DIR
-git clone https://github.com/deephealthproject/ecvl.git
+if [ ! -d "ecvl" ]; then
+  git clone https://github.com/deephealthproject/ecvl.git
+fi
 cd ecvl
-git checkout tags/v0.3.3 # Latest release
+#git checkout tags/v0.3.3 # Latest release
+git fetch && git checkout development && git pull
 mkdir -p build && cd build
-cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
+cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 ECVL_INSTALL_DIR=$UCP_PATH/$DEPENDENCIES_DIR/ecvl/build/install
 
@@ -49,4 +60,4 @@ mkdir -p bin_lin && cd bin_lin
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -Decvl_DIR=$ECVL_INSTALL_DIR ..
 make -j$PROC
 echo "Pipeline built"
-
+cd $UCP_PATH
