@@ -19,7 +19,7 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Settings
-    Settings s(10, { 28,28 }, "LeNet", "mse", 0.0001f, 0.9f);
+    Settings s(10, { 28,28 }, "LeNet", "mse", 0.0001f);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }

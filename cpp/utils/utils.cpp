@@ -15,15 +15,16 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
 
     cxxopts::Options options("DeepHealth pipeline", "");
     options.add_options()
+        ("exp_name", "Experiment name", cxxopts::value<string>())
         ("d,dataset_path", "Dataset path", cxxopts::value<path>())
-        ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("50"))
+        ("e,epochs", "Number of training epochs", cxxopts::value<int>()->default_value("100"))
         ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
         ("n,num_classes", "Number of output classes", cxxopts::value<int>()->default_value(to_string(s.num_classes)))
         ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"))
         ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value(size))
         ("loss", "Loss function", cxxopts::value<string>()->default_value(s.loss))
         ("l,learning_rate", "Learning rate", cxxopts::value<float>()->default_value(to_string(s.lr)))
-        ("momentum", "Momentum", cxxopts::value<float>()->default_value(to_string(s.momentum)))
+        ("momentum", "Momentum", cxxopts::value<float>()->default_value("0.9"))
         ("model", "Model of the network", cxxopts::value<string>()->default_value(s.model))
         ("g,gpu", "Which GPUs to use", cxxopts::value<vector<int>>()->default_value("1"))
         ("lsb", "How many batches are processed before synchronizing the model weights",
@@ -75,14 +76,15 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     cout << "dataset_path: " << s.dataset_path << "\n";
     cout << "checkpoint_dir: " << s.checkpoint_dir << "\n";
 
+    vector<int> in_shape{ 3, s.size[0], s.size[1] };
     if (args.count("checkpoint")) {
         s.random_weights = false;
         string checkpoint = args["checkpoint"].as<string>();
-        s.net = import_net_from_onnx_file(checkpoint);
-        cout << "pretrained weight: " << checkpoint << "\n";
+        s.net = import_net_from_onnx_file(checkpoint, in_shape, DEV_CPU);
+        cout << "pretrained network: " << checkpoint << "\n";
     } else { // Define the network
         layer in, out;
-        in = Input({ 3, s.size[0], s.size[1] });
+        in = Input(in_shape);
 
         if (!s.model.compare("SegNet")) {
             out = SegNet(in, s.num_classes);
@@ -137,6 +139,10 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         cout << "result output folder: " << s.result_dir << "\n";
     } else {
         cout << "save_images: false\n" << endl;
+    }
+
+    if (args.count("exp_name")) {
+        s.exp_name = args["exp_name"].as<string>();
     }
 
     return true;

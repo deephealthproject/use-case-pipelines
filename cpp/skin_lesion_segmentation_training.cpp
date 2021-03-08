@@ -19,7 +19,7 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Settings
-    Settings s(1, { 192,192 }, "SegNetBN", "cross_entropy", 0.0001f, 0.9f);
+    Settings s(1, { 192,192 }, "SegNetBN", "cross_entropy", 0.0001f);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }

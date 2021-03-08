@@ -23,6 +23,7 @@ struct Settings
     eddl::compserv cs;
     Net* net;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
+    std::string exp_name;
 
     Settings() = delete;
     Settings(int num_classes_,
@@ -30,8 +31,8 @@ struct Settings
         const std::string& model_,
         const std::string& loss_,
         const float& lr_,
-        const float& momentum_) :
-        num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), momentum(momentum_)
+        const string& exp_name_ = "") :
+        num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), exp_name(exp_name_)
     {}
 };
 
