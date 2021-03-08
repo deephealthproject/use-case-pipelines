@@ -1,182 +1,229 @@
 import argparse
 import os
+import random
+import sys
 
-import albumentations as A
 import imgaug.augmenters as iaa
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from PIL import Image
-from albumentations.pytorch import ToTensorV2
+from sklearn.metrics import confusion_matrix
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.models import resnet50
+from torchvision import models
 from tqdm import tqdm
 
-from skin_lesion_classification.dataset import YAMLClassificationDataset
+from dataset import YAMLClassificationDataset
+from plots import plot_confusion_matrix
+
+seed = 50
+os.environ["PL_GLOBAL_SEED"] = str(seed)
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
+train_dist = np.asarray([3322, 10175, 2423, 627, 2024, 149, 163, 448], dtype=np.float32)
+valid_dist = np.asarray([200, 450, 150, 40, 100, 15, 15, 30], dtype=np.float32)
+test_dist = np.asarray([1000, 2250, 750, 200, 500, 75, 75, 150], dtype=np.float32)
+
+normalization_isic = (0.6681, 0.5301, 0.5247), (0.1337, 0.1480, 0.1595)
+normalization_imagenet = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
 
-def Threshold(a, thresh=0.5):
-    a[a >= thresh] = 1
-    a[a < thresh] = 0
-    return a
+def get_weights():
+    # calculate class weights to artificially change the class probability distribution
+    train_sampling_prob = train_dist / train_dist.sum()
+    target_prob = np.ones_like(train_dist, dtype=np.float32) / len(train_dist)
+    return target_prob / train_sampling_prob
+
+
+def get_weights_median():
+    dataset_freq = np.array([4522, 12875, 3323, 867, 2624, 239, 253, 628], dtype=np.float32)
+    median = np.median(dataset_freq)
+    return median / dataset_freq
+
+
+def SkinLesionModel(model, pretrained=True):
+    models_zoo = {
+        'resnet18': models.resnet18(pretrained=pretrained),
+        'resnet50': models.resnet50(pretrained=pretrained),
+        'resnet152': models.resnet152(pretrained=pretrained),
+        'resnext50_32x4d': torch.hub.load('pytorch/vision:v0.8.2', 'resnext50_32x4d', pretrained=pretrained,
+                                          verbose=False),
+    }
+    net = models_zoo.get(model)
+    if net is None:
+        raise Warning("Wrong Net Name!!")
+    return net
 
 
 def main(args):
     writer = SummaryWriter(comment='')
+    os.makedirs(args.weights, exist_ok=True)
 
-    # auto training_augs = make_shared<SequentialAugmentationContainer>(
-    #         AugResizeDim(s.size),
-    #         AugMirror(.5),
-    #         AugFlip(.5),
-    #         AugRotate({ -180, 180 }),
-    #         AugAdditivePoissonNoise({ 0, 10 }),
-    #         AugGammaContrast({ .5, 1.5 }),
-    #         AugGaussianBlur({ .0, .8 }),
-    #         AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
     train_transform = iaa.Sequential([
         iaa.Resize((args.size, args.size)),
         iaa.Fliplr(p=0.5),
-        iaa.Flipud(p=.5),
+        iaa.Flipud(p=0.5),
         iaa.Rotate(rotate=(-180, 180)),
         iaa.AdditivePoissonNoise(lam=(0, 10.,)),
         iaa.GammaContrast(gamma=(.5, 1.5)),
         iaa.GaussianBlur(sigma=(.0, .8)),
-        iaa.CoarseDropout(p=(0, 0.3), size_percent=(0.02, 0.05)),
+        iaa.Sometimes(0.25, iaa.CoarseDropout(p=(0, 0.03), size_percent=(0, 0.05))),
     ])
 
-    valid_transform = A.Compose(
-        [
-            A.Resize(args.size, args.size),
-            A.Normalize(60.243489265441895, 167.91686515808107),
-            ToTensorV2(),
-        ]
-    )
-    train_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=train_transform, split=['training'])
-    valid_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=valid_transform, split=['validation'])
-    test_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=valid_transform, split=['test'])
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4,
-                                  drop_last=True, pin_memory=True)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4,
-                                  drop_last=False, pin_memory=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4,
-                                 drop_last=False, pin_memory=True)
+    valid_transform = iaa.Sequential([
+        iaa.Resize((args.size, args.size)),
+    ])
+
+    train_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=train_transform, split=['training'],
+                                              normalization=normalization_isic)
+    valid_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=valid_transform, split=['validation'],
+                                              normalization=normalization_isic)
+    test_dataset = YAMLClassificationDataset(dataset=args.in_ds, transform=valid_transform, split=['test'],
+                                             normalization=normalization_isic)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
+                                  drop_last=True)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers,
+                                  drop_last=False)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers,
+                                 drop_last=False)
 
     dataloaders = {"train": train_dataloader, "valid": valid_dataloader, 'test': test_dataloader}
     device = torch.device('cpu' if not args.gpu else 'cuda')
 
     # Model, loss, optimizer
-    model = resnet50(pretrained=True, out_channels=args.num_classes)
+    print('Loading model...')
+    model = SkinLesionModel(args.model)
+
+    if args.onnx_export:
+        # export onnx
+        dummy_input = torch.ones(4, 3, args.size, args.size, device='cpu')
+        model.train()
+        torch.onnx.export(model, dummy_input, f'{args.model}.onnx', verbose=True, export_params=True,
+                          training=torch.onnx.TrainingMode.TRAINING,
+                          opset_version=12,
+                          do_constant_folding=False,
+                          input_names=['input'],
+                          output_names=['output'],
+                          dynamic_axes={'input': {0: 'batch_size'},  # variable length axes
+                                        'output': {0: 'batch_size'}})
+
+    # Change last linear layer
+    model.fc = torch.nn.Linear(model.fc.in_features, args.num_classes)
+
     if torch.cuda.device_count() > 1 and args.gpu:
         model = torch.nn.DataParallel(model, device_ids=np.where(np.array(args.gpu) == 1)[0])
-    model.to(device)
+    print(f'Move model to {device}')
+    model = model.to(device)
+
+    # loss_fn = nn.modules.loss.CrossEntropyLoss(weight=torch.from_numpy(get_weights()).to(device))
     loss_fn = nn.modules.loss.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     if args.ckpts is None:
-        best_validation_score = 0.0
+        best_valid_acc = 0.
         load_epoch = 0
     else:
         checkpoint = torch.load(args.ckpts)
         model.load_state_dict(checkpoint['state_dict'])
         load_epoch = checkpoint['epoch']
         optimizer.load_state_dict(checkpoint['optimizer'])
-        best_validation_score = checkpoint['best_metric']
-        print("Loaded checkpoint epoch ", load_epoch, " with best metric ", best_validation_score)
+        best_valid_acc = checkpoint['best_metric']
+        print("Loaded checkpoint epoch ", load_epoch, " with best metric ", best_valid_acc)
 
-    train_eval = Evaluator()
-    valid_eval = Evaluator()
-    for epoch in tqdm(range(load_epoch, args.epochs), total=args.epochs):
-        print()
+    train_acc = 0
+    valid_acc = 0
+    print('Starting training')
+    for epoch in range(load_epoch, args.epochs):
         loss_train = []
         loss_valid = []
-        train_eval.ResetEval()
-        valid_eval.ResetEval()
         for phase in ["train", "valid"]:
-            print('STARTING ', phase)
             if phase == "train":
                 model.train()
             else:
                 model.eval()
 
-            for i, (x, gt, names) in enumerate(dataloaders[phase]):
-                pred_list = []
-                gt_list = []
-                if phase == "train":
-                    optimizer.zero_grad()
-
-                if isinstance(loss_fn, torch.nn.CrossEntropyLoss):
-                    x, gt = x.to(device), gt.to(device, dtype=torch.long)
-                    gt = gt.squeeze()
-                else:
+            correct = 0
+            total = 0
+            pred_list = []
+            gt_list = []
+            with tqdm(desc=f"{phase} {epoch}/{args.epochs}", unit="batch", total=len(dataloaders[phase]),
+                      file=sys.stdout) as pbar:
+                for i, (x, gt, names) in enumerate(dataloaders[phase]):
+                    # torchvision.utils.save_image(x, f'batch_{i}.jpg')
                     x, gt = x.to(device), gt.to(device)
+                    with torch.set_grad_enabled(phase == "train"):
+                        pred = model(x)
+                        loss = loss_fn(pred, gt)
+                        loss_item = loss.item()
+                        pred = torch.nn.functional.softmax(pred, dim=1)
 
-                with torch.set_grad_enabled(phase == "train"):
-                    pred = model(x)
-                    loss = loss_fn(pred, gt)
-                    pred = torch.nn.Sigmoid()(pred)
+                        pred_np = pred.detach().cpu().numpy()
+                        pred_np = pred_np.argmax(axis=1)
+                        pred_list.extend(pred_np)
+                        gt_np = gt.detach().cpu().numpy()
+                        gt_list.extend(gt_np)
 
-                    pred_np = pred.detach().cpu().numpy()
-                    pred_list.extend([pred_np[s] for s in range(pred_np.shape[0])])
-                    gt_np = gt.detach().cpu().numpy()
-                    gt_list.extend([gt_np[s] for s in range(gt_np.shape[0])])
+                        correct += (pred_np == gt_np).sum()
+                        total += pred_np.shape[0]
 
-                    if phase == "train":
-                        loss.backward()
-                        optimizer.step()
-                        loss_train.append(loss.item())
-                        for j, (p, g) in enumerate(zip(pred_list, gt_list)):
-                            train_eval.DiceCoefficient(p, g)
+                        if phase == "train":
+                            optimizer.zero_grad()
+                            loss.backward()
+                            optimizer.step()
+                            loss_train.append(loss_item)
 
-                    elif phase == "valid":
-                        loss_valid.append(loss.item())
-                        for j, (p, g) in enumerate(zip(pred_list, gt_list)):
-                            valid_eval.DiceCoefficient(p, g)
-                            if args.out_dir is not None:
-                                p *= 255
-                                g *= 255
-                                pil = Image.fromarray(p[0].astype('uint8'))
-                                pil.save(os.path.join(args.out_dir, f'{names[j]}.png'))
-                                pil = Image.fromarray(g[0].astype('uint8'))
-                                pil.save(os.path.join(args.out_dir, f'{names[j]}_gt.png'))
+                        elif phase == "valid":
+                            loss_valid.append(loss_item)
 
-        mean_train_dsc = train_eval.MeanMetric()
-        print('Mean metric train epoch ', epoch, ': ', mean_train_dsc)
+                        pbar.set_postfix(loss=loss_item, accuracy=correct / total)
+                        pbar.update()
 
-        mean_valid_dsc = valid_eval.MeanMetric()
-        print('Mean metric validation epoch ', epoch, ': ', mean_valid_dsc)
-        if mean_valid_dsc > best_validation_score:
-            best_validation_score = mean_valid_dsc
+            accuracy = correct / total
+            cm = confusion_matrix(np.array(pred_list).reshape(-1), np.array(gt_list).reshape(-1))
+            print(f'{phase} {epoch}/{args.epochs}: accuracy={accuracy:.4f}')
+            fig = plt.figure(figsize=(args.num_classes, args.num_classes))
+            plot_confusion_matrix(cm, [0, 1, 2, 3, 4, 5, 6, 7])
+            writer.add_figure(f'{phase}/confusion', fig, epoch)
+
+            if phase == 'train':
+                train_acc = accuracy
+                writer.add_scalar(f'{phase}/loss', np.mean(loss_train), epoch)
+                writer.add_scalar(f'{phase}/accuracy', train_acc, epoch)
+
+            else:
+                valid_acc = accuracy
+                writer.add_scalar(f'{phase}/loss', np.mean(loss_valid), epoch)
+                writer.add_scalar(f'{phase}/accuracy', valid_acc, epoch)
+
+        if valid_acc > best_valid_acc:
+            best_valid_acc = valid_acc
             state = {
                 'epoch': epoch,
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                'best_metric': best_validation_score
+                'best_metric': best_valid_acc
             }
-            torch.save(state, os.path.join(args.weights, "nabla_epoch_" + str(epoch) + ".pth"))
-
-        loss_train = np.mean(loss_train)
-        loss_valid = np.mean(loss_valid)
-        writer.add_scalar('Loss/train', loss_train, epoch)
-        writer.add_scalar('Metric/train', mean_train_dsc, epoch)
-        writer.add_scalar('Loss/validation', loss_valid, epoch)
-        writer.add_scalar('Metric/validation', mean_valid_dsc, epoch)
-        print('Mean loss_train epoch ', epoch, ': ', loss_train)
-        print('Mean loss_valid epoch ', epoch, ': ', loss_valid)
+            torch.save(state, os.path.join(args.weights, f'{args.model}.pth'))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('in_ds', metavar='INPUT_DATASET')
+    parser.add_argument('--model', type=str, help='model name', default='resnet18')
     parser.add_argument('--epochs', type=int, metavar='INT', default=100)
-    parser.add_argument('--batch_size', type=int, metavar='INT', default=16)
-    parser.add_argument('--num_classes', type=int, metavar='INT', default=1)
-    parser.add_argument('--n_channels', type=int, metavar='INT', default=1,
-                        help='Number of slices to stack together and use as input')
-    parser.add_argument('--learning_rate', type=float, default=1e-4)
-    parser.add_argument('--size', type=int, metavar='INT', default=256, help='Size of input slices')
+    parser.add_argument('--batch_size', type=int, metavar='INT', default=24)
+    parser.add_argument('--num_classes', type=int, metavar='INT', default=8)
+    parser.add_argument('--learning_rate', type=float, default=1e-5)
+    parser.add_argument('--size', type=int, metavar='INT', default=224, help='Size of input slices')
     parser.add_argument('--gpu', nargs='+', type=int, required=False, help='`--gpu 1 1` to use two GPUs')
     parser.add_argument('--out-dir', metavar='DIR', help='if set, save images in this directory')
     parser.add_argument('--weights', type=str, default='weights', help='save weights in this directory')
     parser.add_argument('--ckpts', type=str)
+    parser.add_argument('--onnx-export', action='store_true')
+    parser.add_argument('--log-interval', type=int, default=10)
+    parser.add_argument('--workers', type=int, default=2)
     main(parser.parse_args())
