@@ -63,22 +63,22 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
 
         # install dependencies as sudo so that they will be installed in "standard" system directories
-        chmod +x install_dependencies.sh
+        chmod u+x install_dependencies.sh
         sudo ./install_dependencies.sh
 
         # install EDDL, OpenCV, ECVL and build the pipeline
-        chmod +x build_pipeline.sh
+        chmod u+x build_pipeline.sh
         ./build_pipeline.sh
         ```
 
     - Building with all the dependencies already installed:
         ```bash
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
         mkdir build && cd build
 
         # if ECVL is not installed in a "standard" system directory (like /usr/local/) you have to provide the installation directory
@@ -90,8 +90,8 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     - Building assuming `cmake >= 3.13`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
         ```bash
         # install EDDL and all its dependencies, OpenCV, ECVL and build the pipeline
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
         build_pipeline.bat
         ```
     
@@ -137,11 +137,11 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 
        The red line represents the prediction processed by ECVL to obtain contours that are overlaid on the original image.
 
-        ![](/imgs/isic_1.png)  |  ![](/imgs/isic_2.png)  |  ![](/imgs/isic_3.png) 
+        ![](imgs/isic_1.png)  |  ![](imgs/isic_2.png)  |  ![](imgs/isic_3.png) 
         :----------------------|-------------------------|----------------------:
     1. *Pneumothorax segmentation validation set*:
 
        The red area represents the prediction, the green area the ground truth. The yellow area therefore represents the correctly predicted pixels.
 
-       ![](/imgs/pneumothorax_1.png) | ![](/imgs/pneumothorax_2.png) | ![](/imgs/pneumothorax_3.png)
+       ![](imgs/pneumothorax_1.png) | ![](imgs/pneumothorax_2.png) | ![](imgs/pneumothorax_3.png)
        :----------------------------:|:-----------------------------:|:----------------------------:
