@@ -51,8 +51,7 @@ if [ ! -d "ecvl" ]; then
   git clone https://github.com/deephealthproject/ecvl.git
 fi
 cd ecvl
-#git checkout tags/v0.3.3 # Latest release
-git fetch && git checkout development && git pull
+git checkout tags/v0.3.4 # Latest release
 mkdir -p build && cd build
 cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_INSTALL_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
