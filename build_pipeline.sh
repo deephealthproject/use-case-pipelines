@@ -1,8 +1,8 @@
 #!/bin/bash
 
 UCP_PATH=$(pwd)
-#DEVICE="GPU"
-DEVICE="CUDNN"
+DEVICE="GPU"
+#DEVICE="CUDNN"
 BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
 DEPENDENCIES_DIR="deephealth_lin"
@@ -11,6 +11,10 @@ PROC=$(($(nproc)-1))
 
 set -e
 set -o pipefail
+
+#export CC=gcc-9
+#export CXX=g++-9
+#export CUDACXX=/usr/local/cuda-10.2/bin/nvcc
 
 mkdir -p $DEPENDENCIES_DIR && cd $DEPENDENCIES_DIR
 

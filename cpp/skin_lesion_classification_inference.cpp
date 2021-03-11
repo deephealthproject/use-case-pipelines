@@ -98,7 +98,7 @@ int main()
                     float max = std::numeric_limits<float>::min();
                     int classe = -1;
                     int gt_class = -1;
-                    for (int k = 0; k < result->size; ++k) {
+                    for (unsigned long k = 0; k < result->size; ++k) {
                         if (result->ptr[k] > max) {
                             max = result->ptr[k];
                             classe = k;
