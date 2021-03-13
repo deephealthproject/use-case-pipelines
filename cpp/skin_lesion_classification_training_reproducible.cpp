@@ -152,16 +152,14 @@ int main(int argc, char* argv[])
         AugGammaContrast({ .5, 1.5 }),
         AugGaussianBlur({ .0, .8 }),
         AugCoarseDropout({ 0, 0.03 }, { 0, 0.05 }, 0.25),
-        AugToFloat32(),
-        AugDivBy255(),
+        AugToFloat32(255),
         //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
         AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
-        AugToFloat32(),
-        AugDivBy255(),
+        AugToFloat32(255),
         //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
         AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );

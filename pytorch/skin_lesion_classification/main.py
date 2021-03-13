@@ -60,7 +60,7 @@ def SkinLesionModel(model, pretrained=True):
 
 
 def main(args):
-    writer = SummaryWriter(comment='')
+    writer = SummaryWriter(comment=args.exp_name)
     os.makedirs(args.weights, exist_ok=True)
 
     train_transform = iaa.Sequential([
@@ -226,4 +226,5 @@ if __name__ == '__main__':
     parser.add_argument('--onnx-export', action='store_true')
     parser.add_argument('--log-interval', type=int, default=10)
     parser.add_argument('--workers', type=int, default=2)
+    parser.add_argument('--exp_name', type=str, default='')
     main(parser.parse_args())
