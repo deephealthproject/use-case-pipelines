@@ -49,7 +49,8 @@ REM ECVL
 cd %UCP_PATH%\%DEPENDENCIES_DIR%
 git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
-git checkout tags/v0.3.4 REM Latest release
+REM Latest release
+git checkout tags/v0.3.4
 mkdir build & cd build
 cmake -G "%GENERATOR%" -A x64 -DOpenCV_DIR=%OPENCV_INSTALL_DIR% -Deddl_DIR=%EDDL_INSTALL_DIR%/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_GPU=OFF -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 cmake --build . --config Debug --parallel %PROC% --target INSTALL
