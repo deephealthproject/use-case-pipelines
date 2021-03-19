@@ -3,7 +3,7 @@
 /deephealth*
 output*
 /.vs*
-/.idea*
+/data*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -15,3 +15,6 @@ __pycache__/
 
 # CMake
 cmake-build-*/
+
+# PyCharm
+.idea*

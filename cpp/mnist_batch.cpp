@@ -48,7 +48,7 @@ int main()
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("mnist/mnist.yml", batch_size, move(dataset_augmentations), ctype);
+    DLDataset d("../data/mnist/mnist.yml", batch_size, move(dataset_augmentations), ctype);
 
     // Prepare tensors which store batch
     tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });

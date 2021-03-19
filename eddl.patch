@@ -1,0 +1,12 @@
+diff --git a/cmake/EDDLConfig.cmake.in b/cmake/EDDLConfig.cmake.in
+index bdc27c2f..045e783d 100644
+--- a/cmake/EDDLConfig.cmake.in
++++ b/cmake/EDDLConfig.cmake.in
+@@ -33,6 +33,7 @@ endif()
+ # CUDA
+ if(USE_CUDA)
+     enable_language(CUDA)
++    find_dependency(CUDAToolkit)
+ endif()
+ 
+ # FPGA

@@ -8,6 +8,7 @@
 #include <random>
 
 #include "ecvl/core/filesystem.h"
+#include "eddl/serialization/onnx/eddl_onnx.h"
 
 using namespace ecvl;
 using namespace ecvl::filesystem;
@@ -17,72 +18,61 @@ using namespace std;
 int main()
 {
     // Settings
-    int batch_size = 12;
-    int num_classes = 1;
-    std::vector<int> size{ 192, 192 }; // Size of images
-
+    int batch_size = 15;
     bool save_images = true;
-    path output_path;
-
-    if (save_images) {
-        output_path = "../output_images_segmentation_inference";
-        create_directory(output_path);
-    }
+    path result_dir;
 
     // Define network
-    layer in = Input({ 3, size[0], size[1] });
-    layer out = SegNet(in, num_classes);
-    layer out_sigm = Sigmoid(out);
-    model net = Model({ in }, { out_sigm });
+    model net = import_net_from_onnx_file("isic_segmentation_checkpoint_epoch_29.onnx");
 
     // Build model
     build(net,
-          adam(0.0001f),           // Optimizer
-          { "cross_entropy" },     // Losses
-          { "mean_squared_error" } // Metrics
+          adam(0.0001f),              // Optimizer
+          { "cross_entropy" },        // Losses
+          { "mean_squared_error" },   // Metrics
+          CS_GPU({1}, 1, "low_mem"),  // Computing Service
+          false                       // Randomly initialize network weights
     );
-
-    toGPU(net, "low_mem");
 
     // View model
     summary(net);
     plot(net, "model.pdf");
     setlogfile(net, "skin_lesion_segmentation_inference");
 
-    auto training_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
-    auto test_augs = make_unique<SequentialAugmentationContainer>(AugResizeDim(size));
-    DatasetAugmentations dataset_augmentations{ {move(training_augs), nullptr, move(test_augs) } };
+    // Set size from the size of the input layer of the network
+    std::vector<int> size{ net->layers[0]->input->shape[2], net->layers[0]->input->shape[3] };
+
+    auto test_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(size));
+    DatasetAugmentations dataset_augmentations{ {nullptr, nullptr, test_augs } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, move(dataset_augmentations));
+    DLDataset d("D:/dataset/isic_segmentation/isic_segmentation.yml", batch_size, dataset_augmentations);
 
-    // Prepare tensors which store batch
-    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = new Tensor({ batch_size, d.n_channels_gt_, size[0], size[1] });
-    tensor output;
+    if (save_images) {
+        result_dir = "../output_images_segmentation_inference";
+        create_directory(result_dir);
+    }
 
-    // Get number of test samples
     d.SetSplit(SplitType::test);
     int num_samples_test = vsize(d.GetSplit());
     int num_batches_test = num_samples_test / batch_size;
     DataGenerator d_generator(&d, batch_size, size, size, 5);
 
+    tensor output;
     View<DataType::float32> img_t;
     View<DataType::float32> gt_t;
     Image orig_img_t, labels, tmp;
     vector<vector<Point2i>> contours;
-
     Eval evaluator;
-    load(net, "isic_segm_segnet_adam_lr_0.0001_loss_ce_size_192_epoch_24.bin");
 
     evaluator.ResetEval();
     d_generator.Start();
-    cout << "Starting test:" << endl;
 
     // Test for each batch
+    cout << "Starting test:" << endl;
     for (int i = 0, n = 0; d_generator.HasNext(); ++i) {
-        cout << "Test - (batch " << i << "/" << num_batches_test << ") ";
+        cout << "Test (batch " << i << "/" << num_batches_test - 1 << ") ";
         cout << "|fifo| " << d_generator.Size() << " ";
         tensor x, y;
 
@@ -93,7 +83,7 @@ int main()
             y->div_(255.);
 
             forward(net, { x });
-            output = getOutput(out_sigm);
+            output = getOutput(getOut(net)[0]);
 
             // Compute IoU metric and optionally save the output images
             for (int j = 0; j < batch_size; ++j, ++n) {
@@ -132,10 +122,10 @@ int main()
                     path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
                     path filename_gt = d.samples_[d.GetSplit()[n]].label_path_.value().filename();
 
-                    ImWrite(output_path / filename.replace_extension(".png"), tmp);
+                    ImWrite(result_dir / filename.replace_extension(".png"), tmp);
 
                     gt->mult_(255.);
-                    ImWrite(output_path / filename_gt, gt_t);
+                    ImWrite(result_dir / filename_gt, gt_t);
 
                     delete orig_img;
                 }
@@ -158,8 +148,6 @@ int main()
     of << "MIoU: " << evaluator.MeanMetric() << endl;
     of.close();
 
-    delete x;
-    delete y;
     delete output;
 
     return EXIT_SUCCESS;

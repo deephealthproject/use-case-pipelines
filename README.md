@@ -17,9 +17,9 @@ Automatically downloaded and extracted by CMake.
 
 #### ISIC - [isic-archive.com](https://www.isic-archive.com/#!/topWithHeader/tightContentTop/challenges)
 
-_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. Change the dataset path into the `skin_lesion_classification_training.cpp` source file accordingly. To perform only inference, change the dataset path into the `skin_lesion_classification_inference.cpp` source file and download checkpoints [here](https://drive.google.com/file/d/1HzEtAni3WNmpwBBBT6fZ5hkW9wJAgqF2/view?usp=sharing) (best accuracy on validation in 50 epochs).
+_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. To run skin_lesion_classification training or inference you must provide the `--dataset_path` as `/path/to/isic_classification.yml` (section [Training options](#c-training-options) list other training settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
 
- _Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. Change the dataset path into the `skin_lesion_segmentation_training.cpp` source file accordingly. To perform only inference, change the dataset path into the `skin_lesion_segmentation_inference.cpp` source file and download checkpoints [here](https://drive.google.com/file/d/13lbpkjrHNZygbdkdux8yr7GlpTW0MgxM/view?usp=sharing) (best Mean Intersection over Union on validation in 50 epochs).
+_Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. To run skin_lesion_segmentation training or inference you must provide the the `--dataset_path` as `/path/to/isic_segmentation.yml` (section [Training options](#c-training-options) for other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
 
 #### PNEUMOTHORAX
 Dataset taken from a kaggle challenge (more details [here](https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation)).
@@ -63,22 +63,22 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
 
         # install dependencies as sudo so that they will be installed in "standard" system directories
-        chmod +x install_dependencies.sh
+        chmod u+x install_dependencies.sh
         sudo ./install_dependencies.sh
 
         # install EDDL, OpenCV, ECVL and build the pipeline
-        chmod +x build_pipeline.sh
+        chmod u+x build_pipeline.sh
         ./build_pipeline.sh
         ```
 
     - Building with all the dependencies already installed:
         ```bash
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
         mkdir build && cd build
 
         # if ECVL is not installed in a "standard" system directory (like /usr/local/) you have to provide the installation directory
@@ -90,8 +90,8 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     - Building assuming `cmake >= 3.13`, `git`, Visual Studio 2017 or 2019, CUDA driver (if you want to use GPUs) already installed 
         ```bash
         # install EDDL and all its dependencies, OpenCV, ECVL and build the pipeline
-        git clone https://github.com/deephealthproject/use_case_pipeline.git
-        cd use_case_pipeline
+        git clone https://github.com/deephealthproject/use-case-pipelines.git
+        cd use-case-pipelines
         build_pipeline.bat
         ```
     
@@ -105,16 +105,43 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     1. PNEUMOTHORAX_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
     1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process.
 
+### C++ Training options
+    -e, --epochs        Number of training epochs (default: 50)
+    -b, --batch_size    Number of images for each batch (default: 12)
+    -n, --num_classes   Number of output classes (default: 1)
+    -s, --size          Size to which resize the input images (default: 192,192)
+    --loss              Loss function (default: cross_entropy)
+    -l, --learning_rate Learning rate (default: 0.0001)
+    --momentum          Momentum (default: 0.9)
+    --model             Model of the network (default: SegNetBN)
+    -g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
+    --lsb               How many batches are processed before synchronizing the model weights (default: 1)
+    -m, --mem           CS memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
+    --save_images       Save validation images or not (default: false)
+    -r, --result_dir    Directory where the output images will be stored (default: ../output_images)
+    --checkpoint_dir    Directory where the checkpoints will be stored (default: ../checkpoints)
+    -d, --dataset_path  Dataset path (mandatory)
+    -c, --checkpoint    Path to the onnx checkpoint file (optional)
+    -h, --help          Print usage
+
+### Pretrained models
+
+|                     |   Model    |   Metric   |  Validation  |  Test    |  ONNX  
+----------------------|------------|------------|--------------|----------|---------------------------------------
+| ISIC classification |   VGG16    |  Accuracy  |     0.615    |  0.4524  | [isic_skin_lesion_classification.onnx](https://drive.google.com/uc?id=1wm4NSeaVOzK9SYF83uz2jbrsBaOYp_Kj&export=download)
+| ISIC segmentation   |  SegNetBN  |    MIoU    |     0.678    |  0.6551  | [isic_skin_lesion_segmentation.onnx](https://drive.google.com/uc?id=1wMlD4lUiEOnxY0rC1-_289XVwC66Zop0&export=download)
+        
+
 - Examples of output for the pre-trained models provided:
     1. *ISIC segmentation test set*:
 
        The red line represents the prediction processed by ECVL to obtain contours that are overlaid on the original image.
 
-        ![](/imgs/isic_1.png)  |  ![](/imgs/isic_2.png)  |  ![](/imgs/isic_3.png) 
+        ![](imgs/isic_1.png)  |  ![](imgs/isic_2.png)  |  ![](imgs/isic_3.png) 
         :----------------------|-------------------------|----------------------:
     1. *Pneumothorax segmentation validation set*:
 
        The red area represents the prediction, the green area the ground truth. The yellow area therefore represents the correctly predicted pixels.
 
-       ![](/imgs/pneumothorax_1.png) | ![](/imgs/pneumothorax_2.png) | ![](/imgs/pneumothorax_3.png)
+       ![](imgs/pneumothorax_1.png) | ![](imgs/pneumothorax_2.png) | ![](imgs/pneumothorax_3.png)
        :----------------------------:|:-----------------------------:|:----------------------------:
