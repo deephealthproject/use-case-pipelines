@@ -8,7 +8,7 @@ BUILD_TYPE=${1:-Release}
 DEPENDENCIES_DIR="${2:-deephealth_lin}"
 CMAKE_GENERATOR=${3:-"Unix Makefiles"}
 
-EDDL_VERSION="${4:-v0.9.1b}"
+EDDL_VERSION="${4:-v0.9.2b}"
 ECVL_VERSION="${5:-v0.3.4}"
 OPENCV_VERSION=3.4.13
 
@@ -29,7 +29,6 @@ if [ ! -d "eddl" ]; then
   git clone https://github.com/deephealthproject/eddl.git
   cd eddl
   git checkout tags/${EDDL_VERSION}
-  git apply --ignore-space-change --ignore-whitespace ${UCP_PATH}/eddl.patch
 else
   cd eddl
 fi
@@ -58,7 +57,8 @@ if [ ! -d "ecvl" ]; then
 fi
 cd ecvl
 # Latest release
-git checkout tags/${ECVL_VERSION}
+# git checkout tags/${ECVL_VERSION}
+git checkout master
 mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_BUILD_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
