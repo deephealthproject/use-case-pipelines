@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
             cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
             cout << "|fifo| " << d_generator_t.Size() << " - ";
 
-            tensor x, y;
+            Tensor* x, * y;
 
             // Load a batch
             if (d_generator_t.PopBatch(x, y)) {
@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
             cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
                 << ") ";
 
-            tensor x, y;
+            Tensor* x, * y;
 
             // Load a batch
             if (d_generator_v.PopBatch(x, y)) {

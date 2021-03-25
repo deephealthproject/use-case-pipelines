@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
             cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
             cout << "|fifo| " << d_generator_t.Size() << " - ";
 
-            tensor x, y;
+            Tensor* x, * y;
 
             // Load a batch
             if (d_generator_t.PopBatch(x, y)) {
@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
             cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
                 << ") ";
 
-            tensor x, y;
+            Tensor* x, * y;
 
             // Load a batch
             if (d_generator_v.PopBatch(x, y)) {
@@ -145,16 +145,16 @@ int main(int argc, char* argv[])
 
                 // Evaluate batch
                 forward(s.net, { x });
-                tensor output = getOutput(getOut(s.net)[0]);
+                Tensor* output = getOutput(getOut(s.net)[0]);
 
                 // Compute IoU metric and optionally save the output images
                 for (int k = 0; k < s.batch_size; ++k, ++n) {
-                    tensor img = output->select({ to_string(k) });
+                    Tensor* img = output->select({ to_string(k) });
                     TensorToView(img, img_t);
                     img_t.colortype_ = ColorType::GRAY;
                     img_t.channels_ = "xyc";
 
-                    tensor gt = y->select({ to_string(k) });
+                    Tensor* gt = y->select({ to_string(k) });
                     TensorToView(gt, gt_t);
                     gt_t.colortype_ = ColorType::GRAY;
                     gt_t.channels_ = "xyc";
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
                     cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
                     if (s.save_images) {
-                        tensor orig_img = x->select({ to_string(k) });
+                        Tensor* orig_img = x->select({ to_string(k) });
                         orig_img->mult_(255.);
                         TensorToImage(orig_img, orig_img_t);
                         orig_img_t.colortype_ = ColorType::BGR;

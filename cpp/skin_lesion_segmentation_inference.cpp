@@ -27,11 +27,11 @@ int main()
 
     // Build model
     build(net,
-          adam(0.0001f),              // Optimizer
-          { "cross_entropy" },        // Losses
-          { "mean_squared_error" },   // Metrics
-          CS_GPU({1}, 1, "low_mem"),  // Computing Service
-          false                       // Randomly initialize network weights
+        adam(0.0001f),                // Optimizer
+        { "cross_entropy" },          // Losses
+        { "mean_squared_error" },     // Metrics
+        CS_GPU({ 1 }, 1, "low_mem"),  // Computing Service
+        false                         // Randomly initialize network weights
     );
 
     // View model
@@ -59,7 +59,7 @@ int main()
     int num_batches_test = num_samples_test / batch_size;
     DataGenerator d_generator(&d, batch_size, size, size, 5);
 
-    tensor output;
+    Tensor* output;
     View<DataType::float32> img_t;
     View<DataType::float32> gt_t;
     Image orig_img_t, labels, tmp;
@@ -74,7 +74,7 @@ int main()
     for (int i = 0, n = 0; d_generator.HasNext(); ++i) {
         cout << "Test (batch " << i << "/" << num_batches_test - 1 << ") ";
         cout << "|fifo| " << d_generator.Size() << " ";
-        tensor x, y;
+        Tensor* x, * y;
 
         // Load a batch
         if (d_generator.PopBatch(x, y)) {
@@ -87,12 +87,12 @@ int main()
 
             // Compute IoU metric and optionally save the output images
             for (int j = 0; j < batch_size; ++j, ++n) {
-                tensor img = output->select({to_string(j)});
+                Tensor* img = output->select({ to_string(j) });
                 TensorToView(img, img_t);
                 img_t.colortype_ = ColorType::GRAY;
                 img_t.channels_ = "xyc";
 
-                tensor gt = y->select({to_string(j)});
+                Tensor* gt = y->select({ to_string(j) });
                 TensorToView(gt, gt_t);
                 gt_t.colortype_ = ColorType::GRAY;
                 gt_t.channels_ = "xyc";
@@ -100,7 +100,7 @@ int main()
                 cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
 
                 if (save_images) {
-                    tensor orig_img = x->select({to_string(j)});
+                    Tensor* orig_img = x->select({ to_string(j) });
                     orig_img->mult_(255.);
                     TensorToImage(orig_img, orig_img_t);
                     orig_img_t.colortype_ = ColorType::BGR;

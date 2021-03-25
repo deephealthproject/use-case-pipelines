@@ -54,8 +54,8 @@ int main()
     DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
 
     // Prepare tensors which store batch
-    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor output;
+    Tensor* x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    Tensor* output;
 
     // Get number of test samples.
     d.SetSplit(SplitType::test);
@@ -81,7 +81,7 @@ int main()
 
         // Save the output images
         for (int k = 0; k < batch_size; ++k, ++n) {
-            tensor img = output->select({to_string(k)});
+            Tensor* img = output->select({ to_string(k) });
             TensorToView(img, img_t);
             img_t.colortype_ = ColorType::GRAY;
             img_t.channels_ = "xyc";

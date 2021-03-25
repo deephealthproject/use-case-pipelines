@@ -51,8 +51,8 @@ int main()
     DLDataset d("../data/mnist/mnist.yml", batch_size, move(dataset_augmentations), ctype);
 
     // Prepare tensors which store batch
-    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
+    Tensor* x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    Tensor* y = new Tensor({ batch_size, static_cast<int>(d.classes_.size()) });
 
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / batch_size;

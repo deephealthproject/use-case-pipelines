@@ -62,7 +62,7 @@ int main()
     DataGenerator d_generator(&d, batch_size, size, size, 5);
 
     float sum = 0., ca = 0., mean_metric;
-    tensor output, target, result, single_image;
+    Tensor* output, * target, * result, * single_image;
     View<DataType::float32> img_t;
     vector<float> total_metric;
     Metric* m = getMetric("categorical_accuracy");
@@ -73,7 +73,7 @@ int main()
     for (int i = 0, n = 0; d_generator.HasNext(); ++i) {
         cout << "Test: (batch " << i << "/" << num_batches_test - 1 << ") - ";
         cout << "|fifo| " << d_generator.Size() << " ";
-        tensor x, y;
+        Tensor* x, * y;
 
         // Load a batch
         if (d_generator.PopBatch(x, y)) {

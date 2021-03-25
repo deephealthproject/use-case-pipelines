@@ -18,10 +18,10 @@ class DataGenerator
     class TensorPair
     {
     public:
-        TensorPair(tensor x, tensor y) : x_(x), y_(y) {}
+        TensorPair(Tensor*& x, Tensor*& y) : x_(x), y_(y) {}
 
-        tensor x_;
-        tensor y_;
+        Tensor* x_;
+        Tensor* y_;
     };
 
 private:
@@ -50,7 +50,7 @@ public:
     void ThreadProducer();
     bool HasNext();
     size_t Size();
-    bool PopBatch(tensor& x, tensor& y);
+    bool PopBatch(Tensor*& x, Tensor*& y);
 };
 
 #endif // DATAGENERATOR_H

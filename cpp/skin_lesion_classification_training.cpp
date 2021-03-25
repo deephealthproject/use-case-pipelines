@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
     int num_batches_validation = num_samples_validation / s.batch_size;
     DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
 
-    tensor output, target, result, single_image;
+    Tensor* output, * target, * result, * single_image;
     float sum = 0.f, ca = 0.f, best_metric = 0.f, mean_metric;
 
     vector<float> total_metric;
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
             cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
             cout << "|fifo| " << d_generator_t.Size() << " - ";
 
-            tensor x, y;
+            Tensor* x, * y;
             // Load a batch
             if (d_generator_t.PopBatch(x, y)) {
                 // Check input images
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
         for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
             cout << "Validation: Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
                 << ") - ";
-            tensor x, y;
+            Tensor* x, * y;
             // Load a batch
             if (d_generator_v.PopBatch(x, y)) {
                 // Evaluate batch

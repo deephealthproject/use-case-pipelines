@@ -86,9 +86,9 @@ void DataGenerator::ThreadProducer()
         }
 
         // creating new tensors for every batch can generate overload, let us check now this in the future
-        tensor x = new Tensor({ batch_size_, source_->n_channels_, input_shape_[0], input_shape_[1] });
-        tensor y;
-        if(source_->classes_.empty()) {
+        Tensor* x = new Tensor({ batch_size_, source_->n_channels_, input_shape_[0], input_shape_[1] });
+        Tensor* y;
+        if (source_->classes_.empty()) {
             y = new Tensor({ batch_size_, source_->n_channels_gt_, input_shape_[0], input_shape_[1] });
         }
         else {
@@ -142,7 +142,7 @@ size_t DataGenerator::Size()
     return fifo_.size();
 }
 
-bool DataGenerator::PopBatch(tensor& x, tensor& y)
+bool DataGenerator::PopBatch(Tensor*& x, Tensor*& y)
 {
     TensorPair* _temp;
     { // critical region begins

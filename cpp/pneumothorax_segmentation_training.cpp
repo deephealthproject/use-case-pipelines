@@ -14,7 +14,7 @@ using namespace eddl;
 using namespace std;
 
 // Custom LoadBatch for pneumothorax specific problem.
-vector<path> PneumothoraxLoadBatch(DLDataset& d, tensor& images, tensor& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
+vector<path> PneumothoraxLoadBatch(DLDataset& d, Tensor*& images, Tensor*& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
 {
     int& bs = d.batch_size_;
     Image img, gt;
@@ -134,8 +134,8 @@ int main()
     DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
 
     // Prepare tensors which store batch
-    tensor x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
-    tensor y = new Tensor({ batch_size, d.n_channels_gt_, size[0], size[1] });
+    Tensor* x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
+    Tensor* y = new Tensor({ batch_size, d.n_channels_gt_, size[0], size[1] });
 
     // Retrieve indices of images with a black ground truth
     vector<int> total_indices(d.samples_.size());
@@ -239,16 +239,16 @@ int main()
             y->div_(255.);
 
             forward(net, { x });
-            tensor output = getOutput(out_sigm);
+            Tensor* output = getOutput(out_sigm);
 
             // Compute Dice metric and optionally save the output images
             for (int k = 0, n = 0; k < batch_size; ++k, n += 2) {
-                tensor pred = output->select({ to_string(k) });
+                Tensor* pred = output->select({ to_string(k) });
                 TensorToView(pred, pred_ecvl);
                 pred_ecvl.colortype_ = ColorType::GRAY;
                 pred_ecvl.channels_ = "xyc";
 
-                tensor gt = y->select({ to_string(k) });
+                Tensor* gt = y->select({ to_string(k) });
                 TensorToView(gt, gt_ecvl);
                 gt_ecvl.colortype_ = ColorType::GRAY;
                 gt_ecvl.channels_ = "xyc";

@@ -373,7 +373,6 @@ layer ResNet50(layer x, const int& num_classes)
     return x;
 }
 
-
 layer ResNet101(layer x, const int& num_classes)
 {
     vector<pair<int, int>> filters{ { 3, 64 },
