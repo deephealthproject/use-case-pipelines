@@ -4,7 +4,7 @@ set GENERATOR=Visual Studio 16 2019
 set DEVICE=GPU
 set DEPENDENCIES_DIR=deephealth_win
 set EDDL_VERSION=v0.9.2b
-set ECVL_VERSION=v0.3.4
+set ECVL_VERSION=v0.3.5
 set OPENCV_VERSION=4.5.1
 
 set CONFIGS=Debug Release
@@ -55,8 +55,7 @@ cd %UCP_PATH%\%DEPENDENCIES_DIR%
 git clone https://github.com/deephealthproject/ecvl.git
 cd ecvl
 REM Latest release
-REM git checkout tags/%ECVL_VERSION%
-git checkout master
+git checkout tags/%ECVL_VERSION%
 mkdir build & cd build
 cmake -G "%GENERATOR%" -A x64 -DOpenCV_DIR=%OPENCV_INSTALL_DIR% -Deddl_DIR=%EDDL_INSTALL_DIR%/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_GPU=OFF -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 (for %%c in (%CONFIGS%) do ( 

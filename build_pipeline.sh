@@ -9,7 +9,7 @@ DEPENDENCIES_DIR="${2:-deephealth_lin}"
 CMAKE_GENERATOR=${3:-"Unix Makefiles"}
 
 EDDL_VERSION="${4:-v0.9.2b}"
-ECVL_VERSION="${5:-v0.3.4}"
+ECVL_VERSION="${5:-v0.3.5}"
 OPENCV_VERSION=3.4.13
 
 PROC=$(nproc)
@@ -57,8 +57,7 @@ if [ ! -d "ecvl" ]; then
 fi
 cd ecvl
 # Latest release
-# git checkout tags/${ECVL_VERSION}
-git checkout master
+git checkout tags/${ECVL_VERSION}
 mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_BUILD_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
