@@ -182,7 +182,6 @@ int main(int argc, char* argv[])
     d.SetSplit(SplitType::validation);
     int num_samples_validation = vsize(d.GetSplit());
     int num_batches_validation = num_samples_validation / s.batch_size;
-    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
 
     Tensor* output, * target, * result, * single_image;
     float sum = 0.f, ca = 0.f, best_metric = 0.f, mean_metric;
@@ -197,7 +196,8 @@ int main(int argc, char* argv[])
     iota(indices.begin(), indices.end(), 0);
     cv::TickMeter tm;
     cv::TickMeter tm_epoch;
-
+    Tensor* x_val = new Tensor({ s.batch_size, d.n_channels_, s.size[0], s.size[1] });
+    Tensor* y_val = new Tensor({ s.batch_size, static_cast<int>(d.classes_.size()) });
     cout << "Starting training" << endl;
     for (int i = 0; i < s.epochs; ++i) {
         tm_epoch.reset();
@@ -264,65 +264,60 @@ int main(int argc, char* argv[])
 
         // Validation
         d.SetSplit(SplitType::validation);
-        d_generator_v.Start();
         set_mode(s.net, 0);
         cout << "Starting validation:" << endl;
-        for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
+
+        for (int j = 0, n = 0; j < num_batches_validation; ++j) {
             cout << "Validation: Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
                 << ") - ";
-            Tensor* x, * y;
 
             // Load a batch
-            if (d_generator_v.PopBatch(x, y)) {
-                // Evaluate batch
-                forward(s.net, { x }); // forward does not require reset_loss
-                output = getOutput(out);
-                ca = metric_fn->value(y, output);
+            d.LoadBatch(x_val, y_val);
+            // Evaluate batch
+            forward(s.net, { x_val }); // forward does not require reset_loss
+            output = getOutput(out);
+            ca = metric_fn->value(y_val, output);
 
-                total_metric.push_back(ca);
-                if (s.save_images) {
-                    for (int k = 0; k < s.batch_size; ++k, ++n) {
-                        result = output->select({ to_string(k) });
-                        target = y->select({ to_string(k) });
-                        //result->toGPU();
-                        //target->toGPU();
-                        float max = std::numeric_limits<float>::min();
-                        int classe = -1;
-                        int gt_class = -1;
-                        for (unsigned c = 0; c < result->size; ++c) {
-                            if (result->ptr[c] > max) {
-                                max = result->ptr[c];
-                                classe = c;
-                            }
-
-                            if (target->ptr[c] == 1.) {
-                                gt_class = c;
-                            }
+            total_metric.push_back(ca);
+            if (s.save_images) {
+                for (int k = 0; k < s.batch_size; ++k, ++n) {
+                    result = output->select({ to_string(k) });
+                    target = y_val->select({ to_string(k) });
+                    //result->toGPU();
+                    //target->toGPU();
+                    float max = std::numeric_limits<float>::min();
+                    int classe = -1;
+                    int gt_class = -1;
+                    for (unsigned c = 0; c < result->size; ++c) {
+                        if (result->ptr[c] > max) {
+                            max = result->ptr[c];
+                            classe = c;
                         }
 
-                        single_image = x->select({ to_string(k) });
-                        TensorToView(single_image, img_t);
-                        img_t.colortype_ = ColorType::BGR;
-                        single_image->mult_(255.);
-
-                        path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
-
-                        path cur_path = current_path / d.classes_[classe] /
-                            filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
-                        ImWrite(cur_path, img_t);
-                        delete single_image;
-                        delete result;
-                        delete target;
+                        if (target->ptr[c] == 1.) {
+                            gt_class = c;
+                        }
                     }
-                }
-                cout << " categorical_accuracy: " << ca / s.batch_size << endl;
 
-                delete output;
-                delete x;
-                delete y;
+                    single_image = x_val->select({ to_string(k) });
+                    TensorToView(single_image, img_t);
+                    img_t.colortype_ = ColorType::BGR;
+                    single_image->mult_(255.);
+
+                    path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
+
+                    path cur_path = current_path / d.classes_[classe] /
+                        filename.replace_extension("_gt_class_" + to_string(gt_class) + ".png");
+                    ImWrite(cur_path, img_t);
+                    delete single_image;
+                    delete result;
+                    delete target;
+                }
             }
+            cout << " categorical_accuracy: " << ca / s.batch_size << endl;
+
+            delete output;
         }
-        d_generator_v.Stop();
 
         mean_metric = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / (total_metric.size() * s.batch_size);
         cout << "Validation categorical accuracy: " << mean_metric << endl;
@@ -338,5 +333,8 @@ int main(int argc, char* argv[])
         of.close();
     }
 
+    delete s.net;
+    delete x_val;
+    delete y_val;
     return EXIT_SUCCESS;
 }
