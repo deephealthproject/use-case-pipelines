@@ -99,11 +99,13 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     
 ## Training and inference
 
-- The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
+The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
+- Training:
     1. MNIST_BATCH and SKIN_LESION_CLASSIFICATION_TRAINING train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
     1. SKIN_LESION_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
     1. PNEUMOTHORAX_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
-    1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process.
+- Inference:
+    1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process. See [Pretrained models](#pretrained-models) section for checkpoints.
 
 ### C++ Training options
     -e, --epochs        Number of training epochs (default: 50)
@@ -128,8 +130,8 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 
 |                     |   Model    |   Metric   |  Validation  |  Test    |  ONNX  
 ----------------------|------------|------------|--------------|----------|---------------------------------------
-| ISIC classification |   VGG16    |  Accuracy  |     0.615    |  0.4524  | [isic_skin_lesion_classification.onnx](https://drive.google.com/uc?id=1wm4NSeaVOzK9SYF83uz2jbrsBaOYp_Kj&export=download)
-| ISIC segmentation   |  SegNetBN  |    MIoU    |     0.678    |  0.6551  | [isic_skin_lesion_segmentation.onnx](https://drive.google.com/uc?id=1wMlD4lUiEOnxY0rC1-_289XVwC66Zop0&export=download)
+| ISIC classification |   ResNet50    |  Accuracy  |     0.854    |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
+| ISIC segmentation   |  SegNetBN  |    MIoU    |     0.678    |  0.6551  | [download](https://drive.google.com/uc?id=1wMlD4lUiEOnxY0rC1-_289XVwC66Zop0&export=download)
         
 
 - Examples of output for the pre-trained models provided:

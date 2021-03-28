@@ -17,11 +17,12 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-    cxxopts::Options options("Skin lesion inference", "");
+    cxxopts::Options options("Skin lesion classification inference", "");
     options.add_options()
         ("d,dataset_path", "Dataset path", cxxopts::value<path>())
-        ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
-        ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("12"))
+        ("c,checkpoint", "Path to the ONNX checkpoint file", cxxopts::value<string>())
+        ("b,batch_size", "Number of images for each batch", cxxopts::value<int>()->default_value("40"))
+        ("s,size", "Size to which resize the input images", cxxopts::value<vector<int>>()->default_value("224,224"))
         ("save_images", "Save validation images or not", cxxopts::value<bool>()->default_value("false"));
 
     auto args = options.parse(argc, argv);
@@ -31,14 +32,15 @@ int main(int argc, char* argv[])
     int batch_size = args["batch_size"].as<int>();
     bool save_images = args["save_images"].as<bool>();
     string checkpoint = args["checkpoint"].as<string>();
+    vector<int> size = args["size"].as<vector<int>>();
     path result_dir;
 
     // Define network
-    model net = import_net_from_onnx_file(checkpoint);
+    model net = import_net_from_onnx_file(checkpoint, { 3, size[0], size[1] });
 
     // Build model
     build(net,
-        adam(0.00001f),               // Optimizer
+        adam(1e-5f),                  // Optimizer
         { "soft_cross_entropy" },     // Losses
         { "categorical_accuracy" },   // Metrics
         CS_GPU({ 1 }, "low_mem"),     // Computing Service
@@ -49,9 +51,6 @@ int main(int argc, char* argv[])
     /*summary(net);
     plot(net, "model.pdf");*/
     setlogfile(net, "skin_lesion_classification_inference");
-
-    // Set size from the size of the input layer of the network
-    std::vector<int> size{ net->layers[0]->input->shape[2], net->layers[0]->input->shape[3] };
 
     auto augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(size, InterpolationType::cubic),
@@ -148,5 +147,6 @@ int main(int argc, char* argv[])
 
     delete x_test;
     delete y_test;
+    delete net;
     return EXIT_SUCCESS;
 }
