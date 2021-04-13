@@ -9,7 +9,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on three different datasets (_MN
 - (Optional) Pneumothorax dataset.
 
 ### Datasets
-The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](https://drive.google.com/uc?id=1pZotvwM5rltg5OhYGr9oSLVW8yxjs3U_&export=download), [ISIC segmentation](https://drive.google.com/uc?id=1HHmBNiyQ1dH398E3ECl8WqVoZuV23fjM&export=download) and [Pneumothorax segmentation](https://drive.google.com/uc?id=1D1IM9Gw2wWzvnWeX7ac7ZsjetxU8kCit&export=download).
+The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](datasets/isic_classification.yml), [ISIC segmentation](datasets/isic_segmentation.yml) and [Pneumothorax segmentation](datasets/pneumothorax.yml).
 
 
 #### MNIST
