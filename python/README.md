@@ -11,7 +11,7 @@ install [PyEDDL](https://github.com/deephealthproject/pyeddl), as explained in
 the instructions. Note that all software packages must be compiled with the
 same compiler.
 
-The current version of the python pipeline requires PyECVL 0.3.0.
+The current version of the python pipeline requires PyECVL 0.10.0.
 
 An alternative to manually installing the required packages is to use the
 [DeepHealth Docker images](https://github.com/deephealthproject/docker-libs).

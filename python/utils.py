@@ -1,4 +1,7 @@
+import os
+
 import numpy as np
+import requests
 
 
 class Evaluator:
@@ -45,3 +48,19 @@ def ImageSqueeze(img):
     img.strides_ = [_ for i, _ in enumerate(img.strides_) if i != k]
     k = img.channels_.find("z")
     img.channels_ = "".join([_ for i, _ in enumerate(img.channels_) if i != k])
+
+
+def DownloadModel(url: str, filename: str, dest_path: str) -> str:
+    """
+    Download a onnx from a URL and place it in a destination folder.
+    @param url: The URL to follow for download the ONNX file
+    @param filename: The filename of the downloaded file ('my_model.onxx')
+    @param dest_path: The folder where to place the downloaded file
+    @return: Return the full path to the ONNX model
+    """
+    if not os.path.exists(os.path.join(dest_path, filename)):
+        os.makedirs(dest_path, exist_ok=True)
+        r = requests.get(url, allow_redirects=True)
+        with open(os.path.join(dest_path, filename), 'wb') as f:
+            f.write(r.content)
+    return os.path.join(dest_path, filename)

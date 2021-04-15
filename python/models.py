@@ -20,6 +20,30 @@
 
 import pyeddl.eddl as eddl
 
+# ResNet models exported by PyTorch (using training mode)
+resnet_zoo = {
+    'resnet18': {
+        'url': 'https://drive.google.com/uc?id=1-ZoqAQm8Ie_gHc1ozs6bbBOWVCZFvJ8x&export=download',
+        'to_remove': 'Gemm_68',
+        'flatten': 'Flatten_67',
+        'input': 'input',
+    },
+    'resnet50': {
+        'url': "https://drive.google.com/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download",
+        'to_remove': 'Gemm_174',
+        'flatten': 'Flatten_173',
+        'input': 'input',
+    },
+}
+
+mnist_zoo = {
+    'mnist': {
+        'url': "https://github.com/onnx/models/blob/master/vision/classification/mnist/model/mnist-8.onnx",
+        'to_remove': '',
+        'flatten': '',
+    }
+}
+
 
 def LeNet(in_layer, num_classes):
     x = in_layer
