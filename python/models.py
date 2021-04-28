@@ -21,27 +21,39 @@
 import pyeddl.eddl as eddl
 
 # ResNet models exported by PyTorch (using training mode)
-resnet_zoo = {
+classification_zoo = {
     'resnet18': {
-        'url': 'https://drive.google.com/uc?id=1-ZoqAQm8Ie_gHc1ozs6bbBOWVCZFvJ8x&export=download',
+        'url': 'https://drive.google.com/uc?id=1-ZoqAQm8Ie_gHc1ozs6bbBOWVCZFvJ8x',
         'to_remove': 'Gemm_68',
-        'flatten': 'Flatten_67',
+        'top': 'Flatten_67',
         'input': 'input',
     },
     'resnet50': {
-        'url': "https://drive.google.com/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download",
+        'url': "https://drive.google.com/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H",
         'to_remove': 'Gemm_174',
-        'flatten': 'Flatten_173',
+        'top': 'Flatten_173',
         'input': 'input',
     },
+    # 'mnist': {
+    #     'url': "https://github.com/onnx/models/blob/master/vision/classification/mnist/model/mnist-8.onnx",
+    #     'to_remove': '',
+    #     'top': '',
+    # }
 }
 
-mnist_zoo = {
-    'mnist': {
-        'url': "https://github.com/onnx/models/blob/master/vision/classification/mnist/model/mnist-8.onnx",
-        'to_remove': '',
-        'flatten': '',
-    }
+segmentation_zoo = {
+    'Unet': {
+        'url': 'https://drive.google.com/uc?id=1AEh6PyS2unMEOF6XIDayN9sQImAdWtC1',
+        'to_remove': 'Conv_401',
+        'top': 'Relu_400',
+        'input': 'input',
+    },
+    'Unet++': {
+        'url': 'https://drive.google.com/uc?id=18EJ6n0RMXUPn34jVYALfVtDZw7h3llWn',
+        'to_remove': 'Conv_479',
+        'top': 'Relu_478',
+        'input': 'input',
+    },
 }
 
 

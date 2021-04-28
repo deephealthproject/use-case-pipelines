@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import requests
-
+import gdown
 
 class Evaluator:
     def __init__(self):
@@ -60,7 +60,5 @@ def DownloadModel(url: str, filename: str, dest_path: str) -> str:
     """
     if not os.path.exists(os.path.join(dest_path, filename)):
         os.makedirs(dest_path, exist_ok=True)
-        r = requests.get(url, allow_redirects=True)
-        with open(os.path.join(dest_path, filename), 'wb') as f:
-            f.write(r.content)
+        gdown.download(url, os.path.join(dest_path, filename), quiet=False)
     return os.path.join(dest_path, filename)
