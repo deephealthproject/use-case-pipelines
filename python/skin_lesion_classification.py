@@ -34,7 +34,7 @@ import pyeddl.eddl as eddl
 from pyeddl.tensor import Tensor
 
 from python import utils
-from python.models import resnet_zoo
+from python.models import classification_zoo
 
 
 def main(args):
@@ -68,13 +68,13 @@ def main(args):
     if args.ckpts:
         net = eddl.import_net_from_onnx_file(args.ckpts, size)
     else:
-        model_path = utils.DownloadModel(resnet_zoo[args.model]['url'], f'{args.model}.onnx', 'model_onnx')
+        model_path = utils.DownloadModel(classification_zoo[args.model]['url'], f'{args.model}.onnx', 'model_onnx')
         net = eddl.import_net_from_onnx_file(model_path, size)
-        eddl.removeLayer(net, resnet_zoo[args.model]['to_remove'])  # remove last Linear of resnet
-        top = eddl.getLayer(net, resnet_zoo[args.model]['flatten'])  # get flatten of resnet
+        eddl.removeLayer(net, classification_zoo[args.model]['to_remove'])  # remove last Linear of resnet
+        top = eddl.getLayer(net, classification_zoo[args.model]['top'])  # get flatten of resnet
 
         out = eddl.Softmax(eddl.Dense(top, num_classes, True, 'classifier'))  # true is for the bias
-        data_input = eddl.getLayer(net, resnet_zoo[args.model]['input'])  # input of the onnx
+        data_input = eddl.getLayer(net, classification_zoo[args.model]['input'])  # input of the onnx
         net = eddl.Model([data_input], [out])
 
     eddl.build(
@@ -97,7 +97,6 @@ def main(args):
     y = Tensor([batch_size, num_classes])
 
     metric_fn = eddl.getMetric('accuracy')
-    indices = list(range(batch_size))
     best_accuracy = 0.
     if args.train:
         num_samples_train = len(d.GetSplit())
@@ -120,7 +119,7 @@ def main(args):
             d.ResetAllBatches()
             for b in range(num_batches_train):
                 d.LoadBatch(x, y)
-                eddl.train_batch(net, [x], [y], indices)
+                eddl.train_batch(net, [x], [y])
                 losses = eddl.get_losses(net)
                 metrics = eddl.get_metrics(net)
 
@@ -129,6 +128,8 @@ def main(args):
 
             d.SetSplit(ecvl.SplitType.validation)
             values = np.zeros(num_batches_val)
+            eddl.reset_loss(net)
+
             for b in range(num_batches_val):
                 n = 0
                 d.LoadBatch(x, y)
@@ -136,10 +137,6 @@ def main(args):
                 output = eddl.getOutput(out)
                 value = metric_fn.value(y, output)
                 values[b] = value
-                index = 0
-                tmp = x.select([str(index)])
-                tmp.mult_(255)
-                tmp.save(f"images_val/{b}_{index}.jpg")
                 if args.out_dir:
                     for k in range(args.batch_size):
                         result = output.select([str(k)])
@@ -170,20 +167,18 @@ def main(args):
                 eddl.save_net_to_onnx_file(net, f'isic_classification_{args.model}_epoch_{e + 1}.onnx')
 
     elif args.test:
-        d.SetSplit(ecvl.SplitType.validation)
+        d.SetSplit(ecvl.SplitType.test)
         num_samples_test = len(d.GetSplit())
         num_batches_test = num_samples_test // batch_size
         values = np.zeros(num_batches_test)
+        eddl.reset_loss(net)
+
         for b in range(num_batches_test):
             d.LoadBatch(x, y)
             eddl.forward(net, [x])
             output = eddl.getOutput(out)
             value = metric_fn.value(y, output)
             values[b] = value
-            index = 0
-            tmp = x.select([str(index)])
-            tmp.mult_(255)
-            tmp.save(f"images_test/{b}_{index}.jpg")
             if args.out_dir:
                 n = 0
                 for k in range(args.batch_size):
