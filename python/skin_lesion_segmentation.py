@@ -34,7 +34,7 @@ import pyeddl.eddl as eddl
 from pyeddl.tensor import Tensor
 
 from python import utils
-from python.models import segmentation_zoo
+from python.models import Unet
 
 
 def main(args):
@@ -46,7 +46,7 @@ def main(args):
         os.makedirs(args.weights, exist_ok=True)
 
     training_augs = ecvl.SequentialAugmentationContainer([
-        ecvl.AugResizeDim(image_size, ecvl.InterpolationType.cubic),
+        ecvl.AugResizeDim(image_size, ecvl.InterpolationType.cubic, gt_interp=ecvl.InterpolationType.nearest),
         ecvl.AugMirror(.5),
         ecvl.AugFlip(.5),
         ecvl.AugRotate([-180, 180]),
@@ -54,12 +54,13 @@ def main(args):
         ecvl.AugGammaContrast([0.5, 1.5]),
         ecvl.AugGaussianBlur([0, 0.8]),
         ecvl.AugCoarseDropout([0, 0.03], [0.02, 0.05], 0.25),
-        ecvl.AugToFloat32(255),
+        ecvl.AugToFloat32(255, divisor_gt=255),
         ecvl.AugNormalize([0.6681, 0.5301, 0.5247], [0.1337, 0.1480, 0.1595]),  # isic stats
 
     ])
     validation_test_augs = ecvl.SequentialAugmentationContainer([
-        ecvl.AugResizeDim(image_size), ecvl.AugToFloat32(255),
+        ecvl.AugResizeDim(image_size, ecvl.InterpolationType.cubic, gt_interp=ecvl.InterpolationType.nearest),
+        ecvl.AugToFloat32(255, divisor_gt=255),
         ecvl.AugNormalize([0.6681, 0.5301, 0.5247], [0.1337, 0.1480, 0.1595]),  # isic stats
 
     ])
@@ -73,14 +74,19 @@ def main(args):
     if args.ckpts:
         net = eddl.import_net_from_onnx_file(args.ckpts, size)
     else:
-        model_path = utils.DownloadModel(segmentation_zoo[args.model]['url'], f'{args.model}.onnx', 'model_onnx')
-        net = eddl.import_net_from_onnx_file(model_path, size)
-        eddl.removeLayer(net, segmentation_zoo[args.model]['to_remove'])
-        top = eddl.getLayer(net, segmentation_zoo[args.model]['top'])
+        in_ = eddl.Input(size)
+        out = Unet(in_, num_classes)
+        out_sigm = eddl.Sigmoid(out)
+        net = eddl.Model([in_], [out_sigm])
 
-        out = eddl.Sigmoid(eddl.Conv(top, num_classes, [3, 3], name='last_layer'))
-        data_input = eddl.getLayer(net, segmentation_zoo[args.model]['input'])  # input of the onnx
-        net = eddl.Model([data_input], [out])
+        # model_path = utils.DownloadModel(segmentation_zoo[args.model]['url'], f'{args.model}.onnx', 'model_onnx')
+        # net = eddl.import_net_from_onnx_file(model_path, size)
+        # eddl.removeLayer(net, segmentation_zoo[args.model]['to_remove'])
+        # top = eddl.getLayer(net, segmentation_zoo[args.model]['top'])
+        #
+        # out = eddl.Sigmoid(eddl.Conv(top, num_classes, [3, 3], name='last_layer'))
+        # data_input = eddl.getLayer(net, segmentation_zoo[args.model]['input'])  # input of the onnx
+        # net = eddl.Model([data_input], [out])
 
     loss_name = 'binary_cross_entropy'
     metric_name = 'mean_squared_error'
@@ -90,12 +96,12 @@ def main(args):
         [loss_name],
         [metric_name],
         eddl.CS_GPU(args.gpu, mem="low_mem") if args.gpu else eddl.CS_CPU(),
-        False
+        True
     )
     out = eddl.getOut(net)[0]
 
-    if not args.ckpts:
-        eddl.initializeLayer(net, "last_layer")
+    # if not args.ckpts:
+    #     eddl.initializeLayer(net, "last_layer")
 
     eddl.summary(net)
     eddl.setlogfile(net, 'skin_lesion_segmentation')
@@ -121,6 +127,15 @@ def main(args):
             d.ResetAllBatches()
             for b in range(num_batches_train):
                 d.LoadBatch(x, y)
+                # x_ = x.select(["0"])
+                # x_.normalize_(0, 1)
+                # x_.mult_(255.)
+                # x_.save(f'images/train_{e}_{b}.png')
+                #
+                # y_ = y.select(["0"])
+                # # y_.mult_(255.)
+                # y_.save(f'images/train_gt_{e}_{b}.png')
+
                 eddl.train_batch(net, [x], [y])
                 losses = eddl.get_losses(net)
                 metrics = eddl.get_metrics(net)
@@ -188,6 +203,7 @@ def main(args):
                             )
                             ecvl.ImWrite(gt_fn, gt_t)
                     n += 1
+                print()
 
             last_miou = evaluator.MIoU()
             print(f'Validation - epoch [{e + 1}/{args.epochs}] - Total MIoU: {last_miou:.3f}')
