@@ -1,9 +1,10 @@
-/[Bb]uild*
-/[Bb]in*
+/[Bb]uild*/
+/[Bb]in*/
 /deephealth*
 output*
 /.vs*
 /data
+/out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
