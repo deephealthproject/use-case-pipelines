@@ -19,16 +19,20 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Settings
-    Settings s(1, { 192,192 }, "SegNetBN", "cross_entropy", 0.0001f);
+    constexpr int workers = 6;
+    constexpr float lr_step = 0.1f;
+
+    Settings s(1, { 224,224 }, "UNetWithPaddingBN", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation");
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
 
     // Build model
     build(s.net,
+        //        sgd(s.lr, 0.9f), // Optimizer
         adam(s.lr),                 // Optimizer
         { s.loss },                 // Loss
-        { "mean_squared_error" }, // Metric
+        { "dice" },                 // Metric
         s.cs,                       // Computing Service
         s.random_weights            // Randomly initialize network weights
     );
@@ -39,31 +43,38 @@ int main(int argc, char* argv[])
     setlogfile(s.net, "skin_lesion_segmentation");
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
-        AugResizeDim(s.size),
+        AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         AugFlip(.5),
         AugRotate({ -180, 180 }),
         AugAdditivePoissonNoise({ 0, 10 }),
         AugGammaContrast({ .5, 1.5 }),
         AugGaussianBlur({ .0, .8 }),
-        AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0.5));
+        AugCoarseDropout({ 0, 0.03 }, { 0.02, 0.05 }, 0.25),
+        AugToFloat32(255, 255),
+        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
+        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        );
 
-    auto validation_augs = make_shared<SequentialAugmentationContainer>(AugResizeDim(s.size));
+    auto validation_augs = make_shared<SequentialAugmentationContainer>(
+        AugResizeDim(s.size, InterpolationType::cubic),
+        AugToFloat32(255, 255),
+        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
+        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        );
 
     DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations);
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::GRAY);
     // Create producer thread with 'DLDataset d' and 'std::queue q'
     int num_samples = vsize(d.GetSplit());
     int num_batches = num_samples / s.batch_size;
-    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
+    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
 
-    d.SetSplit(SplitType::validation);
-    int num_samples_validation = vsize(d.GetSplit());
+    int num_samples_validation = vsize(d.GetSplit(SplitType::validation));
     int num_batches_validation = num_samples_validation / s.batch_size;
-    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, 5);
 
     View<DataType::float32> img_t, gt_t;
     Image orig_img_t, labels, tmp;
@@ -73,13 +84,16 @@ int main(int argc, char* argv[])
     Eval evaluator;
     mt19937 g(random_device{}());
 
-    vector<int> indices(s.batch_size);
-    iota(indices.begin(), indices.end(), 0);
     cv::TickMeter tm;
     cv::TickMeter tm_epoch;
+    layer out = getOut(s.net)[0];
+
+    Tensor* x_val = new Tensor({ s.batch_size, d.n_channels_, s.size[0], s.size[1] });
+    Tensor* y_val = new Tensor({ s.batch_size, 1, s.size[0], s.size[1] });
 
     cout << "Starting training" << endl;
-    for (int i = 0; i < s.epochs; ++i) {
+    unsigned long long it = 0;
+    for (int e = 0; e < s.epochs; ++e) {
         tm_epoch.reset();
         tm_epoch.start();
 
@@ -97,19 +111,33 @@ int main(int argc, char* argv[])
         for (int j = 0; d_generator_t.HasNext() /* j < num_batches */; ++j) {
             tm.reset();
             tm.start();
-            cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
+            cout << "Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
             cout << "|fifo| " << d_generator_t.Size() << " - ";
 
             Tensor* x, * y;
 
             // Load a batch
             if (d_generator_t.PopBatch(x, y)) {
-                // Preprocessing
-                x->div_(255.);
-                y->div_(255.);
-
                 // Train batch
-                train_batch(s.net, { x }, { y }, indices);
+                train_batch(s.net, { x }, { y });
+
+                // Check input images
+                //unique_ptr<Tensor> out(getOutput(out));
+                //int ind = 0;
+                //{
+                //    unique_ptr<Tensor> tmp(y->select({ to_string(ind), ":", ":", ":" }));
+                //    //tmp->normalize_(0.f, 1.f);
+                //    tmp->clamp_(0.f, 1.f);
+                //    tmp->mult_(255.f);
+                //    tmp->save("images/train_gt_" + to_string(j) + "_" + to_string(ind) + ".png");
+                //}
+                //{
+                //    unique_ptr<Tensor> tmp(x->select({ to_string(ind), ":", ":", ":" }));
+                //    //tmp->normalize_(0.f, 1.f);
+                //    tmp->clamp_(0.f, 1.f);
+                //    tmp->mult_(255.f);
+                //    tmp->save("images/train_image_" + to_string(j) + "_" + to_string(ind) + ".png");
+                //}
 
                 print_loss(s.net, j);
 
@@ -117,9 +145,17 @@ int main(int argc, char* argv[])
                 delete y;
             }
             tm.stop();
-
             cout << "- Elapsed time: " << tm.getTimeSec() << endl;
+            ++it;
         }
+
+        // Change the learning rate after 10'000 iterations
+        //if (it > 1e4) {
+        //    s.lr *= lr_step;
+        //    setlr(s.net, { s.lr, 0.9f });
+
+        //    it = 0;
+        //}
 
         d_generator_t.Stop();
         tm_epoch.stop();
@@ -127,96 +163,88 @@ int main(int argc, char* argv[])
 
         // Validation
         d.SetSplit(SplitType::validation);
-        d_generator_v.Start();
         evaluator.ResetEval();
 
         cout << "Starting validation:" << endl;
-        for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
-            cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
-                << ") ";
-
-            Tensor* x, * y;
+        for (int j = 0, n = 0; j < num_batches_validation; ++j) {
+            cout << "Validation: Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
+                << ")";
 
             // Load a batch
-            if (d_generator_v.PopBatch(x, y)) {
-                // Preprocessing
-                x->div_(255.);
-                y->div_(255.);
+            d.LoadBatch(x_val, y_val);
+            // Evaluate batch
+            forward(s.net, { x_val }); // forward does not require reset_loss
 
-                // Evaluate batch
-                forward(s.net, { x });
-                Tensor* output = getOutput(getOut(s.net)[0]);
+            unique_ptr<Tensor> output(getOutput(out));
 
-                // Compute IoU metric and optionally save the output images
-                for (int k = 0; k < s.batch_size; ++k, ++n) {
-                    Tensor* img = output->select({ to_string(k) });
-                    TensorToView(img, img_t);
-                    img_t.colortype_ = ColorType::GRAY;
-                    img_t.channels_ = "xyc";
+            // Compute IoU metric and optionally save the output images
+            for (int k = 0; k < s.batch_size; ++k, ++n) {
+                Tensor* img = output->select({ to_string(k) });
+                TensorToView(img, img_t);
+                img_t.colortype_ = ColorType::GRAY;
+                img_t.channels_ = "xyc";
 
-                    Tensor* gt = y->select({ to_string(k) });
-                    TensorToView(gt, gt_t);
-                    gt_t.colortype_ = ColorType::GRAY;
-                    gt_t.channels_ = "xyc";
+                Tensor* gt = y_val->select({ to_string(k) });
+                TensorToView(gt, gt_t);
+                gt_t.colortype_ = ColorType::GRAY;
+                gt_t.channels_ = "xyc";
 
-                    cout << "- IoU: " << evaluator.BinaryIoU(img_t, gt_t) << " ";
+                cout << " - IoU: " << evaluator.BinaryIoU(img_t, gt_t);
 
-                    if (s.save_images) {
-                        Tensor* orig_img = x->select({ to_string(k) });
-                        orig_img->mult_(255.);
-                        TensorToImage(orig_img, orig_img_t);
-                        orig_img_t.colortype_ = ColorType::BGR;
-                        orig_img_t.channels_ = "xyc";
+                if (s.save_images) {
+                    Tensor* orig_img = x_val->select({ to_string(k) });
+                    orig_img->mult_(255.);
+                    TensorToImage(orig_img, orig_img_t);
+                    orig_img_t.colortype_ = ColorType::BGR;
+                    orig_img_t.channels_ = "xyc";
 
-                        img->mult_(255.);
-                        CopyImage(img_t, tmp, DataType::uint8);
-                        ConnectedComponentsLabeling(tmp, labels);
-                        CopyImage(labels, tmp, DataType::uint8);
-                        FindContours(tmp, contours);
-                        CopyImage(orig_img_t, tmp, DataType::uint8);
+                    img->mult_(255.);
+                    CopyImage(img_t, tmp, DataType::uint8);
+                    ConnectedComponentsLabeling(tmp, labels);
+                    CopyImage(labels, tmp, DataType::uint8);
+                    FindContours(tmp, contours);
+                    CopyImage(orig_img_t, tmp, DataType::uint8);
 
-                        for (auto& contour : contours) {
-                            for (auto c : contour) {
-                                *tmp.Ptr({ c[0], c[1], 0 }) = 0;
-                                *tmp.Ptr({ c[0], c[1], 1 }) = 0;
-                                *tmp.Ptr({ c[0], c[1], 2 }) = 255;
-                            }
+                    for (auto& contour : contours) {
+                        for (auto c : contour) {
+                            *tmp.Ptr({ c[0], c[1], 0 }) = 0;
+                            *tmp.Ptr({ c[0], c[1], 1 }) = 0;
+                            *tmp.Ptr({ c[0], c[1], 2 }) = 255;
                         }
-
-                        path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
-                        path filename_gt = d.samples_[d.GetSplit()[n]].label_path_.value().filename();
-
-                        ImWrite(s.result_dir / filename.replace_extension(".png"), tmp);
-
-                        if (i == 0) {
-                            gt->mult_(255.);
-                            ImWrite(s.result_dir / filename_gt, gt_t);
-                        }
-
-                        delete orig_img;
                     }
 
-                    delete img;
-                    delete gt;
+                    path filename = d.samples_[d.GetSplit()[n]].location_[0].filename();
+                    path filename_gt = d.samples_[d.GetSplit()[n]].label_path_.value().filename();
+
+                    ImWrite(s.result_dir / filename.replace_extension(".png"), tmp);
+
+                    if (e == 0) {
+                        gt->mult_(255.);
+                        ImWrite(s.result_dir / filename_gt, gt_t);
+                    }
+
+                    delete orig_img;
                 }
-                cout << endl;
+
+                delete img;
+                delete gt;
             }
+            cout << endl;
         }
 
-        d_generator_v.Stop();
         float mean_metric = evaluator.MeanMetric();
         cout << "----------------------------" << endl;
-        cout << "MIoU: " << mean_metric << endl;
+        cout << "Validation MIoU: " << mean_metric << endl;
         cout << "----------------------------" << endl;
 
         if (mean_metric > best_metric) {
             cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path("isic_segmentation_checkpoint_epoch_" + to_string(i) + ".onnx")).string());
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path(s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
             best_metric = mean_metric;
         }
 
-        of.open("output_evaluate_isic_segmentation.txt", ios::out | ios::app);
-        of << "Epoch " << i << " - MIoU: " << evaluator.MeanMetric() << endl;
+        of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
+        of << "Epoch " << e << " - MIoU: " << mean_metric << endl;
         of.close();
     }
 
