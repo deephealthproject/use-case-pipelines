@@ -104,6 +104,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             out = VGG16_inception_2(in, s.num_classes);
         } else if (!s.model.compare("ResNet_01")) {
             out = ResNet_01(in, s.num_classes);
+        } else if (!s.model.compare("DeepLabV3Plus")) {
+            out = DeepLabV3Plus(s.num_classes).forward(in);
         } else {
             cout << ECVL_ERROR_MSG
                 << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN for segmentation;"
