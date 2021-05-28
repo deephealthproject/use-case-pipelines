@@ -1,6 +1,8 @@
 /[Bb]uild*/
 /[Bb]in*/
 /deephealth*
+checkpoints*
+images*
 output*
 /.vs*
 /data

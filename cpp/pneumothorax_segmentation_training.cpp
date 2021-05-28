@@ -13,70 +13,86 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
-// Custom LoadBatch for pneumothorax specific problem.
-vector<path> PneumothoraxLoadBatch(DLDataset& d, Tensor*& images, Tensor*& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
+class PneumoDataset : public DLDataset
 {
-    int& bs = d.batch_size_;
-    Image img, gt;
-    int offset = 0, start = 0;
-    vector<path> names;
-    bool expr = true;
-    static std::mt19937 g(std::random_device{}());
+public:
+    PneumoDataset(const filesystem::path& filename,
+        const int batch_size,
+        DatasetAugmentations augs = DatasetAugmentations(),
+        ColorType ctype = ColorType::RGB,
+        ColorType ctype_gt = ColorType::GRAY,
+        int num_workers = 1,
+        int queue_ratio_size = 1,
+        vector<bool> drop_last = {},
+        bool verify = false) :
 
-    // Move to next samples
-    start = d.current_batch_[+d.current_split_] * bs;
-    ++d.current_batch_[+d.current_split_];
+        DLDataset{ filename, batch_size, augs, ctype, ctype_gt, num_workers, queue_ratio_size, drop_last, verify }
+    {}
 
-    int index = 0;
-    // Fill tensors with data
-    for (int i = start, j = 0; i < start + bs; ++i, ++j) {
-        if (d.current_split_ == SplitType::training) {
-            // in training, check if you can take other black ground truth images..
-            // b_i < mask_indices.size() * 0.25
-            if (mask_indices.size() * 1.25 - i > mask_indices.size() - m_i) {
-                // generate a random value between 0 and 1. With a 80% probability we take a sample with a ground truth with mask if there are still some available.
-                auto prob = std::uniform_real_distribution<>(0, 1)(g);
-                expr = prob >= 0.2 && m_i < mask_indices.size();
+    // Custom LoadBatch for pneumothorax specific problem.
+    vector<path> LoadBatch(Tensor*& images, Tensor*& labels, const vector<int>& mask_indices, const vector<int>& black_indices, int& m_i, int& b_i)
+    {
+        Image img, gt;
+        int offset = 0, start = 0;
+        vector<path> names;
+        bool expr = true;
+        static std::mt19937 g(std::random_device{}());
+
+        // Move to next samples
+        start = current_batch_[+current_split_] * batch_size_;
+        ++current_batch_[+current_split_];
+
+        int index = 0;
+        // Fill tensors with data
+        for (int i = start, j = 0; i < start + batch_size_; ++i, ++j) {
+            if (split_[current_split_].split_type_ == SplitType::training) {
+                // in training, check if you can take other black ground truth images..
+                // b_i < mask_indices.size() * 0.25
+                if (mask_indices.size() * 1.25 - i > mask_indices.size() - m_i) {
+                    // generate a random value between 0 and 1. With a 80% probability we take a sample with a ground truth with mask if there are still some available.
+                    auto prob = std::uniform_real_distribution<>(0, 1)(g);
+                    expr = prob >= 0.2 && m_i < mask_indices.size();
+                }
+                // ..otherwise, you have to take a ground truth with mask
             }
-            // ..otherwise, you have to take a ground truth with mask
+            else {
+                // in validation, first take all the samples with the ground truth with mask and then all those with the black ground truth.
+                expr = m_i < mask_indices.size();
+            }
+
+            if (expr) {
+                index = mask_indices[m_i++];
+            }
+            else {
+                index = black_indices[b_i++];
+            }
+
+            // insert the original name of images and ground truth in case you want to save predictions during validation
+            Sample& elem = samples_[index];
+            names.emplace_back(elem.location_[0]);
+            names.emplace_back(elem.label_path_.value());
+
+            // Read the image
+            img = elem.LoadImage(ctype_, false);
+
+            // Read the ground truth
+            gt = elem.LoadImage(ctype_gt_, true);
+
+            // Apply chain of augmentations to sample image and corresponding ground truth
+            augs_.Apply(current_split_, img, gt);
+
+            // Copy image into tensor (images)
+            ImageToTensor(img, images, offset);
+
+            // Copy label into tensor (labels)
+            ImageToTensor(gt, labels, offset);
+
+            ++offset;
         }
-        else {
-            // in validation, first take all the samples with the ground truth with mask and then all those with the black ground truth.
-            expr = m_i < mask_indices.size();
-        }
 
-        if (expr) {
-            index = mask_indices[m_i++];
-        }
-        else {
-            index = black_indices[b_i++];
-        }
-
-        // insert the original name of images and ground truth in case you want to save predictions during validation
-        Sample& elem = d.samples_[index];
-        names.emplace_back(elem.location_[0]);
-        names.emplace_back(elem.label_path_.value());
-
-        // Read the image
-        img = elem.LoadImage(d.ctype_, false);
-
-        // Read the ground truth
-        gt = elem.LoadImage(d.ctype_gt_, true);
-
-        // Apply chain of augmentations to sample image and corresponding ground truth
-        d.augs_.Apply(d.current_split_, img, gt);
-
-        // Copy image into tensor (images)
-        ImageToTensor(img, images, offset);
-
-        // Copy label into tensor (labels)
-        ImageToTensor(gt, labels, offset);
-
-        ++offset;
+        return names;
     }
-
-    return names;
-}
+};
 
 int main()
 {
@@ -131,7 +147,7 @@ int main()
     // Read the dataset
     cout << "Reading dataset" << endl;
     //Training split is set by default
-    DLDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
+    PneumoDataset d("/path/to/siim/pneumothorax.yml", batch_size, move(dataset_augmentations), ColorType::GRAY);
 
     // Prepare tensors which store batch
     Tensor* x = new Tensor({ batch_size, d.n_channels_, size[0], size[1] });
@@ -140,13 +156,12 @@ int main()
     // Retrieve indices of images with a black ground truth
     vector<int> total_indices(d.samples_.size());
     iota(total_indices.begin(), total_indices.end(), 0);
-    vector<int> training_validation_test_indices(d.split_.training_);
-    training_validation_test_indices.insert(training_validation_test_indices.end(), d.split_.test_.begin(), d.split_.test_.end());
-    training_validation_test_indices.insert(training_validation_test_indices.end(), d.split_.validation_.begin(), d.split_.validation_.end());
+    vector<int> training_validation_test_indices(d.GetSplit(SplitType::training));
+    training_validation_test_indices.insert(training_validation_test_indices.end(), d.GetSplit(SplitType::test).begin(), d.GetSplit(SplitType::test).end());
+    training_validation_test_indices.insert(training_validation_test_indices.end(), d.GetSplit(SplitType::validation).begin(), d.GetSplit(SplitType::validation).end());
     sort(training_validation_test_indices.begin(), training_validation_test_indices.end());
     vector<int> black;
     set_difference(total_indices.begin(), total_indices.end(), training_validation_test_indices.begin(), training_validation_test_indices.end(), std::inserter(black, black.begin()));
-
     // Get number of training samples. Add a 25% of training samples with black ground truth.
     int num_samples = static_cast<int>(d.GetSplit().size() * 1.25);
     int num_batches = num_samples / batch_size;
@@ -200,7 +215,7 @@ int main()
             tm.start();
 
             // Load a batch
-            PneumothoraxLoadBatch(d, x, y, d.GetSplit(), black_training, m_i, b_i);
+            d.LoadBatch(x, y, d.GetSplit(), black_training, m_i, b_i);
             tm.stop();
             cout << "Load time: " << tm.getTimeSec() << " - ";
             tm.reset();
@@ -232,7 +247,7 @@ int main()
             cout << "Validation - Epoch " << i << "/" << epochs << " (batch " << j << "/" << num_batches_validation << ") ";
 
             // Load a batch
-            vector<path> names = PneumothoraxLoadBatch(d, x, y, d.GetSplit(), black_validation, m_i, b_i);
+            vector<path> names = d.LoadBatch(x, y, d.GetSplit(), black_validation, m_i, b_i);
 
             // Preprocessing
             x->div_(255.);
