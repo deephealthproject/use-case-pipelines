@@ -13,7 +13,9 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 1, 1, { 1 }, 1);
+    // workers and queue_ratio will not be used because in this pipeline we use the "old" LoadBatch function
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpus, input_channels 
+    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 1, 1, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -94,7 +96,7 @@ int main(int argc, char* argv[])
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
 
             cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path(s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
         }
     }
 
@@ -117,6 +119,5 @@ int main(int argc, char* argv[])
 
     delete x;
     delete y;
-    delete s.net;
     return EXIT_SUCCESS;
 }

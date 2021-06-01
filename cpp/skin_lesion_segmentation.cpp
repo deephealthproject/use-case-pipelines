@@ -11,10 +11,115 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
+void Inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path, float& best_metric)
+{
+    float mean_metric;
+    vector<vector<Point2i>> contours;
+    Image labels, tmp;
+    View<DataType::float32> pred_t, target_t, img_t;
+    Eval evaluator;
+    ofstream of;
+    layer out = getOut(s.net)[0];
+
+    cout << "Starting " << type << ":" << endl;
+    // Resize to batch size if we have done a previous resize
+    if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+        s.net->resize(s.batch_size);
+    }
+    d.SetSplit(type);
+    d.ResetBatch(d.current_split_);
+    evaluator.ResetEval();
+
+    auto str = !type.compare("validation") ? "/" + s.epochs - 1 : "";
+    d.Start();
+    for (int j = 0, n = 0; j < num_batches; ++j) {
+        cout << type << ": Epoch " << epoch << str << " (batch " << j << "/" << num_batches - 1 << ") - ";
+        cout << "|fifo| " << d.GetQueueSize() << " - ";
+
+        // Load a batch
+        auto [samples, x, y] = d.GetBatch();
+
+        auto current_bs = x->shape[0];
+        // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+        if (j == num_batches - 1 && current_bs != s.batch_size) {
+            s.net->resize(current_bs);
+        }
+
+        // Evaluate batch
+        forward(s.net, { x.get() }); // forward does not require reset_loss
+        unique_ptr<Tensor> output(getOutput(out));
+
+        // Compute IoU metric and optionally save the output images
+        for (int k = 0; k < current_bs; ++k, ++n) {
+            unique_ptr<Tensor> pred(output->select({ to_string(k) }));
+            TensorToView(pred.get(), pred_t);
+            unique_ptr<Tensor> target(y->select({ to_string(k) }));
+            TensorToView(target.get(), target_t);
+
+            cout << " - IoU: " << evaluator.BinaryIoU(pred_t, target_t);
+
+            if (s.save_images) {
+                unique_ptr<Tensor> single_image(x->select({ to_string(k) }));
+                single_image->mult_(255.);
+                single_image->normalize_(0.f, 255.f);
+                TensorToView(single_image.get(), img_t);
+                img_t.colortype_ = ColorType::RGB;
+                img_t.channels_ = "xyc";
+
+                pred->mult_(255.);
+                pred_t.colortype_ = ColorType::GRAY;
+                pred_t.channels_ = "xyc";
+                ConvertTo(pred_t, tmp, DataType::uint8);
+                ConnectedComponentsLabeling(tmp, labels);
+                ConvertTo(labels, tmp, DataType::uint8);
+                FindContours(tmp, contours);
+                ConvertTo(img_t, tmp, DataType::uint8);
+
+                for (auto& contour : contours) {
+                    for (auto c : contour) {
+                        *tmp.Ptr({ c[0], c[1], 0 }) = 0;
+                        *tmp.Ptr({ c[0], c[1], 1 }) = 0;
+                        *tmp.Ptr({ c[0], c[1], 2 }) = 255;
+                    }
+                }
+
+                ImWrite(current_path / samples[k].location_[0].filename(), tmp);
+
+                if (epoch == 0 || type == "test") {
+                    target->mult_(255.);
+                    target_t.colortype_ = ColorType::GRAY;
+                    target_t.channels_ = "xyc";
+                    ImWrite(s.result_dir / (type + " Ground Truth") / samples[k].label_path_.value().filename(), target_t);
+                }
+            }
+        }
+        cout << endl;
+    }
+    d.Stop();
+
+    mean_metric = evaluator.MeanMetric();
+    cout << "----------------------------------------" << endl;
+    cout << "Epoch " << epoch << " - Mean " << type << " IoU: " << mean_metric << endl;
+    cout << "----------------------------------------" << endl;
+
+    if (!type.compare("validation")) {
+        if (mean_metric > best_metric) {
+            cout << "Saving weights..." << endl;
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
+            best_metric = mean_metric;
+        }
+    }
+
+    of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
+    of << "Epoch " << epoch << " - Total " << type << " IoU: " << mean_metric << endl;
+    of.close();
+}
+
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    Settings s(1, { 224,224 }, "UNetWithPaddingBN", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6, { 1 });
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
+    Settings s(1, { 224,224 }, "UNetWithPaddingBN", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -28,7 +133,6 @@ int main(int argc, char* argv[])
         s.cs,            // Computing Service
         s.random_weights // Randomly initialize network weights
     );
-    layer out = getOut(s.net)[0];
 
     // View model
     summary(s.net);
@@ -71,13 +175,12 @@ int main(int argc, char* argv[])
     int num_batches_validation = d.GetNumBatches(SplitType::validation);
     int num_batches_test = d.GetNumBatches(SplitType::test);
 
-    float best_metric = 0.f, mean_metric;
-    vector<vector<Point2i>> contours;
-    Image labels, tmp;
-    View<DataType::float32> pred_t, target_t, img_t;
-    Eval evaluator;
-    ofstream of;
+    float best_metric = 0.f;
     cv::TickMeter tm, tm_epoch;
+
+    if (s.save_images) {
+        create_directory(s.result_dir / "validation Ground Truth");
+    }
 
     if (!s.skip_train) {
         cout << "Starting training" << endl;
@@ -87,6 +190,9 @@ int main(int argc, char* argv[])
             tm_epoch.start();
             d.SetSplit(SplitType::training);
             auto current_path{ s.result_dir / ("Epoch_" + to_string(e)) };
+            if (s.save_images) {
+                create_directory(current_path);
+            }
 
             // Reset errors for train_batch
             reset_loss(s.net);
@@ -108,7 +214,7 @@ int main(int argc, char* argv[])
                 cout << "|fifo| " << d.GetQueueSize() << " - ";
 
                 // Load a batch
-                auto [x, y] = d.GetBatch();
+                auto [samples, x, y] = d.GetBatch();
 
                 // Check input images
                 //for (int ind = 0; ind < s.batch_size; ++ind) {
@@ -146,84 +252,6 @@ int main(int argc, char* argv[])
             }
             d.Stop();
 
-            // Validation
-            cout << "Starting validation:" << endl;
-            // Resize to batch size if we have done a previous resize
-            if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
-                s.net->resize(s.batch_size);
-            }
-            d.SetSplit(SplitType::validation);
-            d.ResetBatch(d.current_split_);
-            evaluator.ResetEval();
-
-            d.Start();
-            for (int j = 0, n = 0; j < num_batches_validation; ++j) {
-                cout << "Validation: Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1 << ") - ";
-                cout << "|fifo| " << d.GetQueueSize() << " - ";
-
-                // Load a batch
-                auto [x, y] = d.GetBatch();
-
-                auto current_bs = x->shape[0];
-                // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
-                if (j == num_batches_validation - 1 && current_bs != s.batch_size) {
-                    s.net->resize(current_bs);
-                }
-
-                // Evaluate batch
-                forward(s.net, { x.get() }); // forward does not require reset_loss
-                unique_ptr<Tensor> output(getOutput(out));
-
-                // Compute IoU metric and optionally save the output images
-                for (int k = 0; k < current_bs; ++k, ++n) {
-                    unique_ptr<Tensor> pred(output->select({ to_string(k) }));
-                    TensorToView(pred.get(), pred_t);
-                    unique_ptr<Tensor> target(y->select({ to_string(k) }));
-                    TensorToView(target.get(), target_t);
-
-                    cout << " - IoU: " << evaluator.BinaryIoU(pred_t, target_t);
-
-                    if (s.save_images) {
-                        unique_ptr<Tensor> single_image(x->select({ to_string(k) }));
-                        single_image->mult_(255.);
-                        single_image->normalize_(0.f, 255.f);
-                        TensorToView(single_image.get(), img_t);
-                        img_t.colortype_ = ColorType::RGB;
-                        img_t.channels_ = "xyc";
-
-                        pred->mult_(255.);
-                        pred_t.colortype_ = ColorType::GRAY;
-                        pred_t.channels_ = "xyc";
-                        ConvertTo(pred_t, tmp, DataType::uint8);
-                        ConnectedComponentsLabeling(tmp, labels);
-                        ConvertTo(labels, tmp, DataType::uint8);
-                        FindContours(tmp, contours);
-                        ConvertTo(img_t, tmp, DataType::uint8);
-
-                        for (auto& contour : contours) {
-                            for (auto c : contour) {
-                                *tmp.Ptr({ c[0], c[1], 0 }) = 0;
-                                *tmp.Ptr({ c[0], c[1], 1 }) = 0;
-                                *tmp.Ptr({ c[0], c[1], 2 }) = 255;
-                            }
-                        }
-
-                        auto filename = "image_" + to_string(n) + ".png";
-                        auto filename_gt = "gt_" + to_string(n) + ".png";
-                        ImWrite(current_path / filename, tmp);
-
-                        if (e == 0) {
-                            target->mult_(255.);
-                            target_t.colortype_ = ColorType::GRAY;
-                            target_t.channels_ = "xyc";
-                            ImWrite(s.result_dir / "Validation Ground Truth" / filename_gt, target_t);
-                        }
-                    }
-                }
-                cout << endl;
-            }
-            d.Stop();
-
             // Change the learning rate after 10'000 iterations
             if (it > 1e4) {
                 s.lr *= lr_step;
@@ -232,113 +260,20 @@ int main(int argc, char* argv[])
                 it = 0;
             }
 
-            mean_metric = evaluator.MeanMetric();
-            cout << "----------------------------------------" << endl;
-            cout << "Epoch " << e << " - Mean validation IoU: " << mean_metric << endl;
-            cout << "----------------------------------------" << endl;
-
-            if (mean_metric > best_metric) {
-                cout << "Saving weights..." << endl;
-                save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
-                best_metric = mean_metric;
-            }
-
-            of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
-            of << "Epoch " << e << " - Total validation IoU: " << mean_metric << endl;
-            of.close();
+            Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
 
             tm_epoch.stop();
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
         }
     }
 
-    //Test
-    cout << "Starting test:" << endl;
-    // Resize to batch size if we have done a previous resize
-    if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
-        s.net->resize(s.batch_size);
+    int epoch = s.skip_train ? s.resume : s.epochs;
+    auto current_path{ s.result_dir / ("Test - epoch " + to_string(epoch)) };
+    if (s.save_images) {
+        create_directory(current_path);
+        create_directory(s.result_dir / "test Ground Truth");
     }
-    d.SetSplit(SplitType::test);
-    evaluator.ResetEval();
+    Inference("test", d, s, num_batches_test, epoch, current_path, best_metric);
 
-    string epoch = to_string(s.skip_train ? s.resume : s.epochs);
-    auto current_path{ s.result_dir / ("Test - epoch " + epoch) };
-
-    d.Start();
-    for (int i = 0, n = 0; i < num_batches_test; ++i) {
-        cout << "Test: (batch " << i << "/" << num_batches_test - 1 << ") - ";
-        cout << "|fifo| " << d.GetQueueSize() << " - ";
-
-        // Load a batch
-        auto [x, y] = d.GetBatch();
-
-        auto current_bs = x->shape[0];
-        // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
-        if (i == num_batches_validation - 1 && current_bs != s.batch_size) {
-            s.net->resize(current_bs);
-        }
-
-        // Evaluate batch
-        forward(s.net, { x.get() }); // forward does not require reset_loss
-        unique_ptr<Tensor> output(getOutput(out));
-
-        // Compute IoU metric and optionally save the output images
-        for (int j = 0; j < current_bs; ++j, ++n) {
-            unique_ptr<Tensor> pred(output->select({ to_string(j) }));
-            TensorToView(pred.get(), pred_t);
-            unique_ptr<Tensor> target(y->select({ to_string(j) }));
-            TensorToView(target.get(), target_t);
-
-            cout << " - IoU: " << evaluator.BinaryIoU(pred_t, target_t);
-
-            if (s.save_images) {
-                unique_ptr<Tensor> single_image(x->select({ to_string(j) }));
-                single_image->mult_(255.);
-                single_image->normalize_(0.f, 255.f);
-                TensorToView(single_image.get(), img_t);
-                img_t.colortype_ = ColorType::RGB;
-                img_t.channels_ = "xyc";
-
-                pred->mult_(255.);
-                pred_t.colortype_ = ColorType::GRAY;
-                pred_t.channels_ = "xyc";
-                ConvertTo(pred_t, tmp, DataType::uint8);
-                ConnectedComponentsLabeling(tmp, labels);
-                ConvertTo(labels, tmp, DataType::uint8);
-                FindContours(tmp, contours);
-                ConvertTo(img_t, tmp, DataType::uint8);
-
-                for (auto& contour : contours) {
-                    for (auto c : contour) {
-                        *tmp.Ptr({ c[0], c[1], 0 }) = 0;
-                        *tmp.Ptr({ c[0], c[1], 1 }) = 0;
-                        *tmp.Ptr({ c[0], c[1], 2 }) = 255;
-                    }
-                }
-
-                auto filename = "image_" + to_string(n) + ".png";
-                auto filename_gt = "gt_" + to_string(n) + ".png";
-                ImWrite(current_path / filename, tmp);
-
-                target->mult_(255.);
-                target_t.colortype_ = ColorType::GRAY;
-                target_t.channels_ = "xyc";
-                ImWrite(s.result_dir / "Test Ground Truth" / filename_gt, target_t);
-            }
-        }
-        cout << endl;
-    }
-    d.Stop();
-
-    mean_metric = evaluator.MeanMetric();
-    cout << "-------------------------" << endl;
-    cout << "Mean test IoU: " << mean_metric << endl;
-    cout << "-------------------------" << endl;
-
-    of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
-    of << "Epoch " << epoch << " - Total test IoU: " << mean_metric << endl;
-    of.close();
-
-    delete s.net;
     return EXIT_SUCCESS;
 }

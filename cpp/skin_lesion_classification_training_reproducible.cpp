@@ -333,7 +333,6 @@ int main(int argc, char* argv[])
         of.close();
     }
 
-    delete s.net;
     delete x_val;
     delete y_val;
     return EXIT_SUCCESS;

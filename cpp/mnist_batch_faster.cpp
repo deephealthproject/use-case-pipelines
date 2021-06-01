@@ -13,7 +13,8 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 4, 5, { 1 }, 1);
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpus, input_channels
+    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 4, 5, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -78,7 +79,7 @@ int main(int argc, char* argv[])
                 cout << "|fifo| " << d.GetQueueSize() << " - ";
 
                 // Load a batch
-                auto [x, y] = d.GetBatch();
+                auto [samples, x, y] = d.GetBatch();
 
                 // Preprocessing
                 x->div_(255.);
@@ -102,7 +103,7 @@ int main(int argc, char* argv[])
             tm_epoch.stop();
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
             cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, (s.checkpoint_dir / path(s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
         }
     }
 
@@ -120,7 +121,7 @@ int main(int argc, char* argv[])
         cout << "|fifo| " << d.GetQueueSize() << " - ";
 
         // Load a batch
-        auto [x, y] = d.GetBatch();
+        auto [samples, x, y] = d.GetBatch();
 
         // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
         if (i == num_batches_test - 1 && x->shape[0] != s.batch_size) {
@@ -135,6 +136,5 @@ int main(int argc, char* argv[])
     }
     d.Stop();
 
-    delete s.net;
     return EXIT_SUCCESS;
 }

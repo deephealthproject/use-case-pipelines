@@ -10,16 +10,16 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
-void inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path)
+void Inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path, float& best_metric)
 {
-    float ca = 0.f, best_metric = 0.f, mean_metric;
+    float ca = 0.f, mean_metric;
     vector<float> total_metric;
     View<DataType::float32> img_t;
     Metric* metric_fn = getMetric("categorical_accuracy");
     ofstream of;
     layer out = getOut(s.net)[0];
 
-    cout << "Starting " + type + ": " << endl;
+    cout << "Starting " << type << ": " << endl;
     // Resize to batch size if we have done a previous resize
     if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
         s.net->resize(s.batch_size);
@@ -34,7 +34,7 @@ void inference(const string& type, DLDataset& d, const Settings& s, const int nu
         cout << "|fifo| " << d.GetQueueSize() << " - ";
 
         // Load a batch
-        auto [x, y] = d.GetBatch();
+        auto [samples, x, y] = d.GetBatch();
 
         auto current_bs = x->shape[0];
         // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
@@ -77,7 +77,7 @@ void inference(const string& type, DLDataset& d, const Settings& s, const int nu
                 img_t.channels_ = "xyc";
 
                 // Save input images in the folder of the predicted class, with the ground truth class in the name
-                auto filename = "image_" + to_string(n) + "_gt_class_" + to_string(gt_class) + ".png";
+                auto filename = samples[k].location_[0].stem().concat("_gt_class_" + to_string(gt_class) + ".png");
                 ImWrite(current_path / d.classes_[pred_class] / filename, img_t);
             }
         }
@@ -86,7 +86,7 @@ void inference(const string& type, DLDataset& d, const Settings& s, const int nu
 
     mean_metric = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / ((num_batches - 1) * s.batch_size + d.split_[d.current_split_].last_batch_);
     cout << "--------------------------------------------------" << endl;
-    cout << "Epoch " << epoch << " - Mean " + type + " categorical accuracy: " << mean_metric << endl;
+    cout << "Epoch " << epoch << " - Mean " << type << " categorical accuracy: " << mean_metric << endl;
     cout << "--------------------------------------------------" << endl;
 
     if (!type.compare("validation")) {
@@ -98,7 +98,7 @@ void inference(const string& type, DLDataset& d, const Settings& s, const int nu
     }
 
     of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
-    of << "Epoch " << epoch << " - Total " + type + " categorical accuracy: " << mean_metric << endl;
+    of << "Epoch " << epoch << " - Total " << type << " categorical accuracy: " << mean_metric << endl;
     of.close();
 
     delete metric_fn;
@@ -107,7 +107,8 @@ void inference(const string& type, DLDataset& d, const Settings& s, const int nu
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    Settings s(8, { 224,224 }, "ResNet50", "sce", 1e-5f, "skin_lesion_classification", "", 100, 8, 4, 5, { 1 });
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
+    Settings s(8, { 224,224 }, "ResNet50", "sce", 1e-5f, "skin_lesion_classification", "", 100, 8, 4, 5);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -162,6 +163,7 @@ int main(int argc, char* argv[])
     int num_batches_validation = d.GetNumBatches(SplitType::validation);
     int num_batches_test = d.GetNumBatches(SplitType::test);
 
+    float best_metric = 0.f;
     cv::TickMeter tm, tm_epoch;
 
     if (!s.skip_train) {
@@ -198,7 +200,7 @@ int main(int argc, char* argv[])
                 cout << "|fifo| " << d.GetQueueSize() << " - ";
 
                 // Load a batch
-                auto [x, y] = d.GetBatch();
+                auto [samples, x, y] = d.GetBatch();
 
                 // Check input images
                 //for (int ind = 0; ind < s.batch_size; ++ind) {
@@ -224,7 +226,7 @@ int main(int argc, char* argv[])
             }
             d.Stop();
 
-            inference("validation", d, s, num_batches_validation, e, current_path);
+            Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
 
             tm_epoch.stop();
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
@@ -232,15 +234,14 @@ int main(int argc, char* argv[])
     }
 
     int epoch = s.skip_train ? s.resume : s.epochs;
-    auto current_path{ s.result_dir / ("Test - epoch " + epoch) };
+    auto current_path{ s.result_dir / ("Test - epoch " + to_string(epoch)) };
     if (s.save_images) {
         for (const auto& c : d.classes_) {
             create_directories(current_path / c);
         }
     }
 
-    inference("test", d, s, num_batches_test, epoch, current_path);
+    Inference("test", d, s, num_batches_test, epoch, current_path, best_metric);
 
-    delete s.net;
     return EXIT_SUCCESS;
 }
