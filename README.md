@@ -4,7 +4,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on three different datasets (_MN
 
 ## Requirements
 - CMake 3.13 or later
-- C++ Compiler with C++17 support (e.g. GCC 6 or later, Clang 5.0 or later, Visual Studio 2017 or later)
+- C++ Compiler with C++17 support (e.g. GCC 7 or later, Clang 5.0 or later, Visual Studio 2017 or later)
 - (Optional) ISIC dataset.
 - (Optional) Pneumothorax dataset.
 
@@ -17,9 +17,9 @@ Automatically downloaded and extracted by CMake.
 
 #### ISIC - [isic-archive.com](https://www.isic-archive.com/#!/topWithHeader/tightContentTop/challenges)
 
-_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. To run skin_lesion_classification training or inference you must provide the `--dataset_path` as `/path/to/isic_classification.yml` (section [Training options](#c-training-options) list other training settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
+_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. To run skin_lesion_classification you must provide the `--dataset_path` as `/path/to/isic_classification.yml` (section [Training options](#c-training-options) list other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
 
-_Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. To run skin_lesion_segmentation training or inference you must provide the the `--dataset_path` as `/path/to/isic_segmentation.yml` (section [Training options](#c-training-options) for other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
+_Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. To run skin_lesion_segmentation you must provide the the `--dataset_path` as `/path/to/isic_segmentation.yml` (section [Training options](#c-training-options) list other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
 
 #### PNEUMOTHORAX
 Dataset taken from a kaggle challenge (more details [here](https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation)).
@@ -32,8 +32,6 @@ Dataset taken from a kaggle challenge (more details [here](https://www.kaggle.co
 From the 2669 distinct training images with mask, 200 are randomly sampled as validation set.
 - Training set: 3086 total images - 80% with mask and 20% without mask.
 - Validation set: 250 total images - 80% with mask and 20% without mask.
-
-To perform only inference on test set, change the dataset path into the `pneumothorax_segmentation_inference.cpp` source file and download checkpoint [here](https://drive.google.com/uc?id=13-bSsMHxKp7WO_HrdWcy5y9n9hbOXNyT&export=download) for EDDL versions >= 0.4.3 or [here](https://drive.google.com/uc?id=1kLhNpzBi5OYm9y4YNlK_XuUf52WItUVT&export=download) for EDDL versions <= 0.4.2 (best Dice Coefficient on validation in 50 epochs).
 
 
 ### CUDA
@@ -99,32 +97,40 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     
 ## Training and inference
 
-The project creates different executables: MNIST_BATCH, SKIN_LESION_CLASSIFICATION_TRAINING, SKIN_LESION_SEGMENTATION_TRAINING, SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE, PNEUMOTHORAX_SEGMENTATION_TRAINING and PNEUMOTHORAX_SEGMENTATION_INFERENCE.
+The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION.
+
 - Training:
-    1. MNIST_BATCH and SKIN_LESION_CLASSIFICATION_TRAINING train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
-    1. SKIN_LESION_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
-    1. PNEUMOTHORAX_SEGMENTATION_TRAINING trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
+    1. MNIST_BATCH load the dataset with the deprecated ECVL LoadBatch which is not parallelized. All the other executables run with a custom number of parallel threads. Default settings [here]().
+    1. MNIST_BATCH_FASTER ([default settings]()) and SKIN_LESION_CLASSIFICATION (default settings) train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
+    1. SKIN_LESION_SEGMENTATION ([default settings]()) trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
+    1. PNEUMOTHORAX_SEGMENTATION ([default settings]()) trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
 - Inference:
-    1. SKIN_LESION_CLASSIFICATION_INFERENCE, SKIN_LESION_SEGMENTATION_INFERENCE and PNEUMOTHORAX_SEGMENTATION_INFERENCE perform only inference on classification or segmentation task loading weights from a previous training process. See [Pretrained models](#pretrained-models) section for checkpoints.
+    1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints.
 
 ### C++ Training options
-    -e, --epochs        Number of training epochs (default: 50)
-    -b, --batch_size    Number of images for each batch (default: 12)
-    -n, --num_classes   Number of output classes (default: 1)
-    -s, --size          Size to which resize the input images (default: 192,192)
-    --loss              Loss function (default: cross_entropy)
-    -l, --learning_rate Learning rate (default: 0.0001)
-    --momentum          Momentum (default: 0.9)
-    --model             Model of the network (default: SegNetBN)
-    -g, --gpu           Which GPUs to use. If not given, the network will run on CPU. (default: 1, other examples: --gpu=0,1 or --gpu=1,1)
-    --lsb               How many batches are processed before synchronizing the model weights (default: 1)
-    -m, --mem           CS memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
-    --save_images       Save validation images or not (default: false)
-    -r, --result_dir    Directory where the output images will be stored (default: ../output_images)
-    --checkpoint_dir    Directory where the checkpoints will be stored (default: ../checkpoints)
-    -d, --dataset_path  Dataset path (mandatory)
-    -c, --checkpoint    Path to the onnx checkpoint file (optional)
-    -h, --help          Print usage
+    -e, --epochs            Number of training epochs
+    -b, --batch_size        Number of images for each batch
+    -n, --num_classes       Number of output classes
+    -s, --size              Size to which resize the input images
+    --loss                  Loss function
+    -l, --learning_rate     Learning rate
+    --momentum              Momentum (default: 0.9)
+    --model                 Model of the network
+    -g, --gpu               Which GPUs to use. If not given, the network will run on CPU. (examples: --gpu 1 or --gpu=0,1 or --gpu=1,1)
+    --lsb                   How many batches are processed before synchronizing the model weights (default: 1)
+    -m, --mem               CS memory usage configuration (default: low_mem, other possibilities: mid_mem, full_mem)
+    --save_images           Save validation images or not (default: false)
+    -r, --result_dir        Directory where the output images will be stored (default: ../output_images)
+    --checkpoint_dir        Directory where the checkpoints will be stored (default: ../checkpoints)
+    -d, --dataset_path      Dataset path (mandatory - except for the mnist pipelines)
+    -c, --checkpoint        Path to the onnx checkpoint file
+    --exp_name              Experiment name
+    -i, --input_channels    Number of the network input channels
+    -w --workers            Number of parallel threads which produce tensors from images and labels
+    -q, --queue_ratio       Maximum queue size in which producers store samples will be: batch_size\*workers\*queue_ratio
+    --resume                Resume training from this epoch
+    -t, --skip_train        Skip training and perform only test (default: false)
+    -h, --help              Print usage
 
 ### Pretrained models
 
