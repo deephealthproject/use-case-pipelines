@@ -100,10 +100,10 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
 The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION.
 
 - Training:
-    1. MNIST_BATCH load the dataset with the deprecated ECVL LoadBatch which is not parallelized. All the other executables run with a custom number of parallel threads. Default settings [here]().
-    1. MNIST_BATCH_FASTER ([default settings]()) and SKIN_LESION_CLASSIFICATION (default settings) train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
-    1. SKIN_LESION_SEGMENTATION ([default settings]()) trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
-    1. PNEUMOTHORAX_SEGMENTATION ([default settings]()) trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
+    1. MNIST_BATCH load the dataset with the deprecated ECVL LoadBatch which is not parallelized. All the other executables run with a custom number of parallel threads. Default settings [here](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/mnist_batch.cpp#L18).
+    1. MNIST_BATCH_FASTER ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/mnist_batch_faster.cpp#L17)) and SKIN_LESION_CLASSIFICATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/skin_lesion_classification.cpp#L111)) train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
+    1. SKIN_LESION_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/skin_lesion_segmentation.cpp#L122)) trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
+    1. PNEUMOTHORAX_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/pneumothorax_segmentation.cpp#L219)) trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
 - Inference:
     1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints.
 
