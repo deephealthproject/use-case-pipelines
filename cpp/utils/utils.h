@@ -25,6 +25,7 @@ struct Settings
     std::string exp_name, checkpoint_path;
 
     Settings() = delete;
+    ~Settings() { delete net; };
     Settings(int num_classes_,
         const std::vector<int>& size_,
         const std::string& model_,

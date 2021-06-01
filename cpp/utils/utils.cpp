@@ -64,6 +64,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     s.random_weights = true;
     s.resume = args["resume"].as<int>();
     s.skip_train = args["skip_train"].as<bool>();
+    s.workers = args["workers"].as<int>();
+    s.queue_ratio = args["queue_ratio"].as<int>();
 
     if (args.count("dataset_path")) {
         s.dataset_path = args["dataset_path"].as<path>();
