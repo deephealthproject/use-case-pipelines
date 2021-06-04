@@ -304,35 +304,6 @@ layer UNetWithPaddingBN(layer x, const int& num_classes)
     return x;
 }
 
-layer ResNet_01(layer x, const int& num_classes)
-{
-    layer l, l0, l1, l2, l3;
-
-    l1 = ReLu(BatchNormalization(Conv(x, 32, { 3,3 }, { 1,1 }, "same")));
-    l2 = ReLu(BatchNormalization(Conv(x, 32, { 5,5 }, { 1,1 }, "same")));
-    l3 = ReLu(BatchNormalization(Conv(x, 32, { 7,7 }, { 1,1 }, "same")));
-
-    l = Concat({ l1,l2,l3 });
-
-    for (int filters : {64, 64, 128, 128, 256, 512}) {
-        l = Conv(l, 1, { 3,3 }, { 1,1 }, "same");
-        l0 = MaxPool(l, { 2,2 }, { 2,2 });
-
-        l1 = ReLu(BatchNormalization(Conv(l0, filters, { 3,3 }, { 1,1 }, "same")));
-        l2 = ReLu(BatchNormalization(Conv(l1, filters, { 3,3 }, { 1,1 }, "same")));
-        l3 = ReLu(BatchNormalization(Conv(l2, filters, { 3,3 }, { 1,1 }, "same")));
-
-        l = Concat({ l1,l2,l3 });
-    }
-
-    l = Reshape(l, { -1 });
-    l = ReLu(BatchNormalization(Dense(l, 4096)));
-    l = ReLu(BatchNormalization(Dense(l, 2048)));
-    l = Softmax(Dense(l, num_classes));
-
-    return l;
-}
-
 layer BottleNeck(layer x, int planes, int stride, bool downsample = false)
 {
     layer identity = x;

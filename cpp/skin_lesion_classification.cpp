@@ -108,14 +108,15 @@ int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(8, { 224,224 }, "ResNet50", "sce", 1e-5f, "skin_lesion_classification", "", 100, 8, 4, 5);
+    Settings s(8, { 224,224 }, "onnx::resnet101", "sce", 1e-4f, "skin_lesion_classification", "", 100, 8, 4, 5);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
 
     // Build model
     build(s.net,
-        sgd(s.lr, s.momentum),      // Optimizer
+        // sgd(s.lr, s.momentum),      // Optimizer
+        adam(s.lr),      // Optimizer
         { s.loss },                 // Loss
         { "categorical_accuracy" }, // Metric
         s.cs,                       // Computing Service

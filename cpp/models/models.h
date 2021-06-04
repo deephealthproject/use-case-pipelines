@@ -19,7 +19,6 @@ eddl::layer SegNetBN(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPadding(eddl::layer x, const int& num_classes);
 eddl::layer UNetWithPaddingBN(eddl::layer x, const int& num_classes);
 
-eddl::layer ResNet_01(eddl::layer x, const int& num_classes);
 eddl::layer ResNet50(eddl::layer x, const int& num_classes);
 eddl::layer ResNet101(eddl::layer x, const int& num_classes);
 eddl::layer ResNet152(eddl::layer x, const int& num_classes);

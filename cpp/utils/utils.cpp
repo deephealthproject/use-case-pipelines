@@ -1,11 +1,13 @@
 #include "utils.h"
 #include "cxxopts.hpp"
+#include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
 #include "../models/models.h"
 
-using namespace std;
-using namespace eddl;
+using namespace ecvl;
 using namespace ecvl::filesystem;
+using namespace eddl;
+using namespace std;
 
 bool TrainingOptions(int argc, char* argv[], Settings& s)
 {
@@ -125,11 +127,20 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         else if (!s.model.compare("VGG16_inception_2")) {
             out = VGG16_inception_2(in, s.num_classes);
         }
-        else if (!s.model.compare("ResNet_01")) {
-            out = ResNet_01(in, s.num_classes);
-        }
         else if (!s.model.compare("DeepLabV3Plus")) {
             out = DeepLabV3Plus(s.num_classes).forward(in);
+        }
+        else if (!s.model.compare("onnx::resnet101")) {
+            if (!filesystem::exists("resnet101-v2-7.onnx")) {
+                system("curl -O -J -L \"https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet101-v2-7.onnx\"");
+            }
+            s.net = import_net_from_onnx_file("resnet101-v2-7.onnx", in_shape, DEV_CPU);
+            removeLayer(s.net, "resnetv25_dense0_fwd"); // remove last Linear
+            auto top = getLayer(s.net, "resnetv25_flatten0_reshape0"); // get flatten/reshape
+
+            out = Softmax(Dense(top, s.num_classes, true, "classifier")); // true is for the bias
+            in = getLayer(s.net, "data");
+            s.random_weights = false; // Use pretrained model
         }
         else {
             cout << ECVL_ERROR_MSG
