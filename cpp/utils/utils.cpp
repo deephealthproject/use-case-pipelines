@@ -106,14 +106,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         if (!s.model.compare("SegNet")) {
             out = SegNet(in, s.num_classes);
         }
-        else if (!s.model.compare("SegNetBN")) {
-            out = SegNetBN(in, s.num_classes);
-        }
-        else if (!s.model.compare("UNetWithPadding")) {
-            out = UNetWithPadding(in, s.num_classes);
-        }
-        else if (!s.model.compare("UNetWithPaddingBN")) {
-            out = UNetWithPaddingBN(in, s.num_classes);
+        else if (!s.model.compare("UNet")) {
+            out = UNet(in, s.num_classes);
         }
         else if (!s.model.compare("LeNet")) {
             out = LeNet(in, s.num_classes);
@@ -144,8 +138,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         }
         else {
             cout << ECVL_ERROR_MSG
-                << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, DeepLabV3Plus for segmentation;"
-                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
+                << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus for segmentation;"
+                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, onnx::resnet101 for classification" << endl;
             return EXIT_FAILURE;
         }
 

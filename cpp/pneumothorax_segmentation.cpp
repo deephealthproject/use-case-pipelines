@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(1, { 512,512 }, "SegNetBN", "cross_entropy", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
+    Settings s(1, { 512,512 }, "SegNet", "cross_entropy", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }

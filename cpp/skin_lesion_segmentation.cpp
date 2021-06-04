@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(1, { 224,224 }, "UNetWithPaddingBN", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6);
+    Settings s(1, { 224,224 }, "UNet", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
