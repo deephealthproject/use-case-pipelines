@@ -1,7 +1,9 @@
-#include "utils.h"
+#include <iostream>
+
 #include "cxxopts.hpp"
 #include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
+#include "utils.h"
 #include "../models/models.h"
 
 using namespace ecvl;
@@ -136,11 +138,21 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             in = getLayer(s.net, "data");
             s.random_weights = false; // Use pretrained model
         }
+        else if (!s.model.compare("onnx::unet_resnet101")) {
+            if (!filesystem::exists("Unet_resnet101_simpl_imagenet.onnx")) {
+                cout << "Please download the ONNX model at \"https://drive.google.com/uc?id=1AEh6PyS2unMEOF6XIDayN9sQImAdWtC1&export=download\" and place it in the binary dir";
+                return false;
+            }
+            s.net = import_net_from_onnx_file("Unet_resnet101_simpl_imagenet.onnx", in_shape, DEV_CPU);
+            out = Sigmoid(getLayer(s.net, "Conv_401"));
+            in = getLayer(s.net, "input");
+            s.random_weights = false; // Use pretrained model
+        }
         else {
             cout << ECVL_ERROR_MSG
                 << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus for segmentation;"
                 "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, onnx::resnet101 for classification" << endl;
-            return EXIT_FAILURE;
+            return false;
         }
 
         s.net = Model({ in }, { out });

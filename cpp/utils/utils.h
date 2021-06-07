@@ -20,12 +20,12 @@ struct Settings
     bool random_weights;
     bool skip_train;
     eddl::compserv cs;
-    Net* net;
+    Net* net = nullptr;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
     std::string exp_name, checkpoint_path;
 
     Settings() = delete;
-    ~Settings() { delete net; };
+    ~Settings() { if(net) delete net; };
     Settings(int num_classes_,
         const std::vector<int>& size_,
         const std::string& model_,
