@@ -134,7 +134,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             removeLayer(s.net, "resnetv25_dense0_fwd"); // remove last Linear
             auto top = getLayer(s.net, "resnetv25_flatten0_reshape0"); // get flatten/reshape
 
-            out = Softmax(Dense(top, s.num_classes, true, "classifier")); // true is for the bias
+            out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
+            s.last_layer = true;
             in = getLayer(s.net, "data");
             s.random_weights = false; // Use pretrained model
         }

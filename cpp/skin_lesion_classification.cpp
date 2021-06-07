@@ -123,6 +123,10 @@ int main(int argc, char* argv[])
         s.random_weights            // Randomly initialize network weights
     );
 
+    if (s.last_layer) {
+        // Initialize last layer if it's been substituted
+        initializeLayer(s.net, "last_layer");
+    }
     // View model
     summary(s.net);
     plot(s.net, s.exp_name + ".pdf");

@@ -23,6 +23,7 @@ struct Settings
     Net* net = nullptr;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
     std::string exp_name, checkpoint_path;
+    bool last_layer = false;
 
     Settings() = delete;
     ~Settings() { if(net) delete net; };
