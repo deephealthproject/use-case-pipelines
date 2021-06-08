@@ -1,11 +1,15 @@
-#include "utils.h"
+#include <iostream>
+
 #include "cxxopts.hpp"
+#include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
+#include "utils.h"
 #include "../models/models.h"
 
-using namespace std;
-using namespace eddl;
+using namespace ecvl;
 using namespace ecvl::filesystem;
+using namespace eddl;
+using namespace std;
 
 bool TrainingOptions(int argc, char* argv[], Settings& s)
 {
@@ -104,14 +108,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         if (!s.model.compare("SegNet")) {
             out = SegNet(in, s.num_classes);
         }
-        else if (!s.model.compare("SegNetBN")) {
-            out = SegNetBN(in, s.num_classes);
-        }
-        else if (!s.model.compare("UNetWithPadding")) {
-            out = UNetWithPadding(in, s.num_classes);
-        }
-        else if (!s.model.compare("UNetWithPaddingBN")) {
-            out = UNetWithPaddingBN(in, s.num_classes);
+        else if (!s.model.compare("UNet")) {
+            out = UNet(in, s.num_classes);
         }
         else if (!s.model.compare("LeNet")) {
             out = LeNet(in, s.num_classes);
@@ -125,17 +123,37 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         else if (!s.model.compare("VGG16_inception_2")) {
             out = VGG16_inception_2(in, s.num_classes);
         }
-        else if (!s.model.compare("ResNet_01")) {
-            out = ResNet_01(in, s.num_classes);
-        }
         else if (!s.model.compare("DeepLabV3Plus")) {
             out = DeepLabV3Plus(s.num_classes).forward(in);
         }
+        else if (!s.model.compare("onnx::resnet101")) {
+            if (!filesystem::exists("resnet101-v2-7.onnx")) {
+                system("curl -O -J -L \"https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet101-v2-7.onnx\"");
+            }
+            s.net = import_net_from_onnx_file("resnet101-v2-7.onnx", in_shape, DEV_CPU);
+            removeLayer(s.net, "resnetv25_dense0_fwd"); // remove last Linear
+            auto top = getLayer(s.net, "resnetv25_flatten0_reshape0"); // get flatten/reshape
+
+            out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
+            s.last_layer = true;
+            in = getLayer(s.net, "data");
+            s.random_weights = false; // Use pretrained model
+        }
+        else if (!s.model.compare("onnx::unet_resnet101")) {
+            if (!filesystem::exists("Unet_resnet101_simpl_imagenet.onnx")) {
+                cout << "Please download the ONNX model at \"https://drive.google.com/uc?id=1AEh6PyS2unMEOF6XIDayN9sQImAdWtC1&export=download\" and place it in the binary dir";
+                return false;
+            }
+            s.net = import_net_from_onnx_file("Unet_resnet101_simpl_imagenet.onnx", in_shape, DEV_CPU);
+            out = Sigmoid(getLayer(s.net, "Conv_401"));
+            in = getLayer(s.net, "input");
+            s.random_weights = false; // Use pretrained model
+        }
         else {
             cout << ECVL_ERROR_MSG
-                << "You must specify one of these models: SegNet, SegNetBN, UNetWithPadding, UNetWithPaddingBN, DeepLabV3Plus for segmentation;"
-                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, ResNet_01 for classification" << endl;
-            return EXIT_FAILURE;
+                << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus for segmentation;"
+                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, onnx::resnet101 for classification" << endl;
+            return false;
         }
 
         s.net = Model({ in }, { out });

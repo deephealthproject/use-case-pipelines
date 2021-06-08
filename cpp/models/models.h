@@ -13,13 +13,10 @@ eddl::layer VGG16_inception_2(eddl::layer x, const int& num_classes);
 
 // Model SegNet (https://mi.eng.cam.ac.uk/projects/segnet)
 eddl::layer SegNet(eddl::layer x, const int& num_classes);
-eddl::layer SegNetBN(eddl::layer x, const int& num_classes);
 
 // Model U-Net (https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net)
-eddl::layer UNetWithPadding(eddl::layer x, const int& num_classes);
-eddl::layer UNetWithPaddingBN(eddl::layer x, const int& num_classes);
+eddl::layer UNet(eddl::layer x, const int& num_classes);
 
-eddl::layer ResNet_01(eddl::layer x, const int& num_classes);
 eddl::layer ResNet50(eddl::layer x, const int& num_classes);
 eddl::layer ResNet101(eddl::layer x, const int& num_classes);
 eddl::layer ResNet152(eddl::layer x, const int& num_classes);
