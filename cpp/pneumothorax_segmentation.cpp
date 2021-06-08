@@ -13,9 +13,10 @@ using namespace std;
 
 class PneumoDataset : public DLDataset
 {
+    vector<int> original_training_indices_;
     vector<int> black_indices_train_;
     vector<int> black_indices_valid_;
-    int m_i_ = 0, b_i_ = 0, i_ = 0;
+    int num_samples_training_, num_samples_validation_;
 
 public:
     float best_metric_ = 0;
@@ -30,69 +31,54 @@ public:
         bool verify = false) :
 
         DLDataset{ filename, batch_size, augs, ctype, ctype_gt, num_workers, queue_ratio_size, drop_last, verify }
-    {}
-
-    void SetMasks(const vector<int>& black_indices_train, const vector<int>& black_indices_valid)
     {
-        black_indices_train_ = black_indices_train;
-        black_indices_valid_ = black_indices_valid;
+        original_training_indices_ = GetSplit(SplitType::training);
+
+        // Get number of training and validation samples. Add a 25% of samples with black ground truth.
+        num_samples_training_ = static_cast<int>(vsize(original_training_indices_) * 1.25);
+        num_samples_validation_ = static_cast<int>(vsize(GetSplit(SplitType::validation)) * 1.25);
     }
 
-    void ResetIndices()
+    void SetTrainingBlackMasks()
     {
-        i_ = 0;
-        m_i_ = 0;
-        b_i_ = 0;
+        auto& s = GetSplit(SplitType::training);
+        s = original_training_indices_;
+
+        shuffle(black_indices_train_.begin(), black_indices_train_.end(), re_);
+        vector<int> black_needed(black_indices_train_.begin(), black_indices_train_.begin() + (num_samples_training_ - vsize(original_training_indices_)));
+        s.insert(s.end(), black_needed.begin(), black_needed.end());
+
+        //shuffle of entire training list is performed by ResetBatch
     }
 
-    // Custom LoadBatch for pneumothorax specific problem.
-    void ProduceImageLabel(DatasetAugmentations& augs, Sample& elem) override
+    void InitDatasetWithBlackMasks()
     {
-        if (!(split_[current_split_].split_type_ == SplitType::test)) {
-            bool expr = true;
-            vector<int> mask_indices = GetSplit();
-            vector<int> black_indices;
-            if (split_[current_split_].split_type_ == SplitType::training) {
-                black_indices = black_indices_train_;
+        auto& tr = GetSplit(SplitType::training);
+        auto& val = GetSplit(SplitType::validation);
+        auto& test = GetSplit(SplitType::test);
 
-                // in training, check if you can take other black ground truth images..
-                // b_i < mask_indices.size() * 0.25
-                if (mask_indices.size() * 1.25 - i_ > mask_indices.size() - m_i_) {
-                    // generate a random value between 0 and 1. With a 80% probability we take a sample with a ground truth with mask if there are still some available.
-                    auto prob = std::uniform_real_distribution<>(0, 1)(re_);
-                    expr = prob >= 0.2 && m_i_ < mask_indices.size();
-                }
-                // ..otherwise, you have to take a ground truth with mask
-            }
-            else {
-                black_indices = black_indices_valid_;
-                // in validation, first take all the samples with the ground truth with mask and then all those with the black ground truth.
-                expr = m_i_ < mask_indices.size();
-            }
+        // Retrieve indices of images with a black ground truth
+        vector<int> total_indices(vsize(samples_));
+        iota(total_indices.begin(), total_indices.end(), 0);
+        vector<int> training_validation_test_indices(tr);
+        training_validation_test_indices.insert(training_validation_test_indices.end(), test.begin(), test.end());
+        training_validation_test_indices.insert(training_validation_test_indices.end(), val.begin(), val.end());
+        sort(training_validation_test_indices.begin(), training_validation_test_indices.end());
+        vector<int> black;
+        set_difference(total_indices.begin(), total_indices.end(), training_validation_test_indices.begin(), training_validation_test_indices.end(), std::inserter(black, black.begin()));
 
-            int index = expr ? mask_indices[m_i_++] : black_indices[b_i_++];
+        // Split indices of images with a black ground truth for training and validation
+        black_indices_train_ = vector<int>(black.begin(), black.end() - (num_samples_validation_ - vsize(val)));
+        black_indices_valid_ = vector<int>(black.end() - (num_samples_validation_ - vsize(val)), black.end());
 
-            // override the sample loaded by default
-            elem = samples_[index];
+        val.insert(val.end(), black_indices_valid_.begin(), black_indices_valid_.end());
+        SetTrainingBlackMasks();
+
+        for (int id = 0; id < vsize(split_); ++id) {
+            split_[id].SetNumBatches(batch_size_);
+            split_[id].SetLastBatch(batch_size_);
+            InitTC(id);
         }
-
-        // Read the image
-        Image img = elem.LoadImage(ctype_, false);
-
-        LabelImage* label = nullptr;
-        // Read the ground truth
-        if (!split_[current_split_].no_label_) {
-            label = new LabelImage();
-            Image gt = elem.LoadImage(ctype_gt_, true);
-            // Apply chain of augmentations to sample image and corresponding ground truth
-            augs.Apply(current_split_, img, gt);
-            label->gt = gt;
-        }
-        else {
-            augs.Apply(current_split_, img);
-        }
-        queue_.Push(elem, img, label);
-        ++i_;
     }
 };
 
@@ -112,15 +98,14 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
     }
     d.SetSplit(type);
     d.ResetBatch(d.current_split_);
-    d.ResetIndices();
     evaluator.ResetEval();
 
-    auto str = !type.compare("validation") ? "/" + s.epochs - 1 : "";
+    auto str = type == "validation" ? "/" + to_string(s.epochs - 1) : "";
     d.Start();
     // Validation for each batch
     for (int j = 0; j < num_batches; ++j) {
         cout << type << ": Epoch " << epoch << str << " (batch " << j << "/" << num_batches - 1 << ") - ";
-        cout << "|fifo| " << d.GetQueueSize() << " - ";
+        cout << "|fifo| " << d.GetQueueSize();
 
         // Load a batch
         auto [samples, x, y] = d.GetBatch();
@@ -136,7 +121,7 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
         unique_ptr<Tensor> output(getOutput(out));
 
         // Compute Dice metric and optionally save the output images
-        for (int k = 0, n = 0; k < s.batch_size; ++k, ++n) {
+        for (int k = 0, n = 0; k < current_bs; ++k, ++n) {
             unique_ptr<Tensor> pred(output->select({ to_string(k) }));
             TensorToView(pred.get(), pred_t);
             pred_t.colortype_ = ColorType::GRAY;
@@ -160,13 +145,13 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
 
             if (s.save_images) {
                 pred->mult_(255.);
+                ImRead(samples[k].location_[0], orig_img);
+                ResizeDim(pred_t, pred_t, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
+
                 if (type == "validation") {
                     // Save original image fused together with prediction (red mask) and ground truth (green mask)
-                    ImRead(samples[k].location_[0], orig_img);
                     ImRead(samples[k].label_path_.value(), orig_gt, ImReadMode::GRAYSCALE);
                     ChangeColorSpace(orig_img, orig_img, ColorType::BGR);
-
-                    ResizeDim(pred_t, pred_t, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
 
                     View<DataType::uint8> v_orig(orig_img);
                     auto i_pred = pred_t.Begin();
@@ -184,10 +169,12 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
                             }
                         }
                     }
-                    pred_t = v_orig;
-                }
 
-                ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), pred_t);
+                    ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), orig_img);
+                }
+                else {
+                    ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), pred_t);
+                }
             }
         }
         cout << endl;
@@ -199,7 +186,7 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
     cout << "Epoch " << epoch << " - Mean " << type << " Dice Coefficient: " << mean_metric << endl;
     cout << "----------------------------------------" << endl;
 
-    if (!type.compare("validation")) {
+    if (type == "validation") {
         if (mean_metric > d.best_metric_) {
             cout << "Saving weights..." << endl;
             save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
@@ -215,7 +202,7 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpu, input_channels
     Settings s(1, { 512,512 }, "SegNetBN", "cross_entropy", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
@@ -257,32 +244,12 @@ int main(int argc, char* argv[])
     // Read the dataset
     cout << "Reading dataset" << endl;
     PneumoDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::GRAY, s.workers, s.queue_ratio, { true, true });
+    d.InitDatasetWithBlackMasks();
 
-    // Retrieve indices of images with a black ground truth
-    vector<int> total_indices(d.samples_.size());
-    iota(total_indices.begin(), total_indices.end(), 0);
-    vector<int> training_validation_test_indices(d.GetSplit(SplitType::training));
-    training_validation_test_indices.insert(training_validation_test_indices.end(), d.GetSplit(SplitType::test).begin(), d.GetSplit(SplitType::test).end());
-    training_validation_test_indices.insert(training_validation_test_indices.end(), d.GetSplit(SplitType::validation).begin(), d.GetSplit(SplitType::validation).end());
-    sort(training_validation_test_indices.begin(), training_validation_test_indices.end());
-    vector<int> black;
-    set_difference(total_indices.begin(), total_indices.end(), training_validation_test_indices.begin(), training_validation_test_indices.end(), std::inserter(black, black.begin()));
-    // Get number of training samples. Add a 25% of training samples with black ground truth.
-    int num_samples_training = static_cast<int>(d.GetSplit().size() * 1.25);
-    int num_batches_training = num_samples_training / s.batch_size;
+    int num_batches_training = d.GetNumBatches(SplitType::training);
+    int num_batches_validation = d.GetNumBatches(SplitType::validation);
+    int num_batches_test = d.GetNumBatches(SplitType::test);
 
-    d.SetSplit(SplitType::validation);
-
-    // Get number of validation samples. Add a 25% of validation samples with black ground truth.
-    int num_samples_validation = static_cast<int>(d.GetSplit().size() * 1.25);
-    int num_batches_validation = num_samples_validation / s.batch_size;
-
-    // Split indices of images with a black ground truth for training and validation
-    vector<int> black_training(black.begin(), black.end() - (num_samples_validation - d.GetSplit().size()));
-    vector<int> black_validation(black.end() - (num_samples_validation - d.GetSplit().size()), black.end());
-    d.SetMasks(black_training, black_validation);
-
-    mt19937 g(std::random_device{}());
     cv::TickMeter tm, tm_epoch;
 
     if (!s.skip_train) {
@@ -304,12 +271,10 @@ int main(int argc, char* argv[])
                 s.net->resize(s.batch_size);
             }
 
+            d.SetTrainingBlackMasks();
+
             // Reset and shuffle training list
             d.ResetBatch(d.current_split_, true);
-            d.ResetIndices();
-
-            // Shuffle training list
-            shuffle(black_training.begin(), black_training.end(), g);
 
             d.Start();
             // Feed batches to the model
@@ -346,10 +311,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Get number of test samples.
-    d.SetSplit(SplitType::test);
-    int num_samples_test = vsize(d.GetSplit());
-    int num_batches_test = num_samples_test / s.batch_size;
     int epoch = s.skip_train ? s.resume : s.epochs;
     auto current_path{ s.result_dir / ("Test - epoch " + to_string(epoch)) };
     if (s.save_images) {

@@ -27,7 +27,7 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
     d.SetSplit(type);
     d.ResetBatch(d.current_split_); // Reset batch without shuffling
 
-    auto str = !type.compare("validation") ? "/" + s.epochs - 1 : "";
+    auto str = type == "validation" ? "/" + to_string(s.epochs - 1) : "";
     d.Start();
     for (int j = 0, n = 0; j < num_batches; ++j) {
         cout << type << ": Epoch " << epoch << str << " (batch " << j << "/" << num_batches - 1 << ") - ";
@@ -89,7 +89,7 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
     cout << "Epoch " << epoch << " - Mean " << type << " categorical accuracy: " << mean_metric << endl;
     cout << "--------------------------------------------------" << endl;
 
-    if (!type.compare("validation")) {
+    if (type == "validation") {
         if (mean_metric > best_metric) {
             cout << "Saving weights..." << endl;
             save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
