@@ -22,7 +22,7 @@ public:
     float best_metric_ = 0;
     PneumoDataset(const filesystem::path& filename,
         const int batch_size,
-        DatasetAugmentations augs = DatasetAugmentations(),
+        DatasetAugmentations augs,
         ColorType ctype = ColorType::RGB,
         ColorType ctype_gt = ColorType::GRAY,
         int num_workers = 1,
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpu, input_channels
-    Settings s(1, { 512,512 }, "SegNet", "cross_entropy", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
+    Settings s(1, { 512,512 }, "SegNet", "dice", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -225,9 +225,18 @@ int main(int argc, char* argv[])
     auto training_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
-        AugRotate({ -10, 10 }),
-        AugBrightness({ 0, 30 }),
-        AugGammaContrast({ 0,3 }),
+        OneOfAugmentationContainer(
+                0.3,
+                AugGammaContrast({ 0,3 }),
+                AugBrightness({ 0, 30 })
+        ),
+        OneOfAugmentationContainer(
+                0.3,
+                AugElasticTransform({ 30, 120 }, { 3, 6 }),
+                AugGridDistortion({ 2, 5 }, { -0.3f, 0.3f }),
+                AugOpticalDistortion({ -0.3f, 0.3f }, { -0.1f, 0.1f })
+        ),
+        AugRotate({ -30, 30 }),
         AugToFloat32(255, 255)
         );
 
