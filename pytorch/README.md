@@ -4,6 +4,8 @@
 pytorch
   └── skin_lesion_classification
         └── ...
+  └── skin_lesion_segmentation
+        └── ...
   └── yaml_segmentation_dataset.py
   └── yaml_classification_dataset.py
 ```
@@ -16,6 +18,7 @@ The following lines provide an usage example for classification task (using torc
 ```python
 from torchvision import transforms
 from torch.utils.data import DataLoader
+
 if __name__ == '__main__':
     dname = 'isic_classification.yml' # ECVL dataset path
     custom_training_transforms = transforms.Compose([
