@@ -5,6 +5,8 @@
 #include "ecvl/core/filesystem.h"
 #include "ecvl/support_eddl.h"
 
+void Download(const string& url);
+
 struct Settings
 {
     int epochs, batch_size, num_classes, in_channels, workers, queue_ratio, resume;

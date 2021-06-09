@@ -11,6 +11,15 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
+void Download(const string& url)
+{
+    int ret = system(("curl -O -J -L \"" + url + "\"").c_str());
+    if (ret == -1) {
+        // The system method failed
+        throw runtime_error("Download of " + url + " failed");
+    }
+}
+
 bool TrainingOptions(int argc, char* argv[], Settings& s)
 {
     std::stringstream result;
@@ -126,13 +135,26 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         else if (!s.model.compare("DeepLabV3Plus")) {
             out = DeepLabV3Plus(s.num_classes).forward(in);
         }
-        else if (!s.model.compare("onnx::resnet101")) {
-            if (!filesystem::exists("resnet101-v2-7.onnx")) {
-                system("curl -O -J -L \"https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet101-v2-7.onnx\"");
+        else if (!s.model.compare("onnx::resnet50")) {
+            if (!filesystem::exists("resnet50-v1-7.onnx")) {
+                Download("https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet50-v1-7.onnx");
             }
-            s.net = import_net_from_onnx_file("resnet101-v2-7.onnx", in_shape, DEV_CPU);
-            removeLayer(s.net, "resnetv25_dense0_fwd"); // remove last Linear
-            auto top = getLayer(s.net, "resnetv25_flatten0_reshape0"); // get flatten/reshape
+            s.net = import_net_from_onnx_file("resnet50-v1-7.onnx", in_shape, DEV_CPU);
+            removeLayer(s.net, "resnetv17_dense0_fwd"); // remove last Linear
+            auto top = getLayer(s.net, "flatten_473"); // get flatten/reshape
+
+            out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
+            s.last_layer = true;
+            in = getLayer(s.net, "data");
+            s.random_weights = false; // Use pretrained model
+        }
+        else if (!s.model.compare("onnx::resnet101")) {
+            if (!filesystem::exists("resnet101-v1-7.onnx")) {
+                Download("https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet101-v1-7.onnx");
+            }
+            s.net = import_net_from_onnx_file("resnet101-v1-7.onnx", in_shape, DEV_CPU);
+            removeLayer(s.net, "resnetv18_dense0_fwd"); // remove last Linear
+            auto top = getLayer(s.net, "flatten_932"); // get flatten/reshape
 
             out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
             s.last_layer = true;
