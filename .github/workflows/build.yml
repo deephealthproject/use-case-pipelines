@@ -40,5 +40,5 @@ jobs:
           DEPS_INSTALL_PATH: ${{ runner.workspace }}/deps_install
         run: |
           mkdir -p build && cd build
-          cmake -G"${CMAKE_GENERATOR}" -DBUILD_TYPE=${BUILD_TYPE} -Decvl_DIR=${DEPS_INSTALL_PATH}/ecvl/build/install ..
+          cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -Decvl_DIR=${DEPS_INSTALL_PATH}/ecvl/build/install ..
           cmake --build . --config ${BUILD_TYPE} --parallel ${PROC}
