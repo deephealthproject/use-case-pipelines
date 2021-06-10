@@ -142,15 +142,15 @@ int main(int argc, char* argv[])
         AugGaussianBlur({ .0, .8 }),
         AugCoarseDropout({ 0, 0.03 }, { 0, 0.05 }, 0.25),
         AugToFloat32(255),
-        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
+        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
         AugToFloat32(255),
-        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
+        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     // Replace the random seed with a fixed one to have reproducible experiments
@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::none, s.workers, s.queue_ratio, { true, false });
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::none, s.workers, s.queue_ratio, { true, false, false });
 
     // int num_batches_training = d.GetNumBatches("training");  // or
     // int num_batches_training = d.GetNumBatches(0);           // where 0 is the split index, or

@@ -252,7 +252,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    PneumoDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::GRAY, s.workers, s.queue_ratio, { true, true });
+    PneumoDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::GRAY, s.workers, s.queue_ratio, { true, false, false });
     d.InitDatasetWithBlackMasks();
 
     int num_batches_training = d.GetNumBatches(SplitType::training);
