@@ -9,13 +9,12 @@ void Download(const string& url);
 
 struct Settings
 {
-    int epochs, batch_size, num_classes, in_channels, workers, queue_ratio, resume;
+    int epochs, batch_size, num_classes, in_channels, workers, resume;
     bool save_images;
     std::vector<int> size;
     std::string model;
     std::string loss;
-    float lr;
-    float momentum;
+    float lr, momentum;
     std::vector<int> gpu;
     int lsb;
     std::string mem;
@@ -26,6 +25,7 @@ struct Settings
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
     std::string exp_name, checkpoint_path;
     bool last_layer = false;
+    double queue_ratio;
 
     Settings() = delete;
     ~Settings() { if(net) delete net; };
@@ -39,7 +39,7 @@ struct Settings
         const int& epochs_ = 100,
         const int& batch_size_ = 12,
         const int& workers_ = 1,
-        const int& queue_ratio_ = 1,
+        const double& queue_ratio_ = 1.,
         const vector<int>& gpus_ = {},
         const int& in_channels_ = 3,
         const string& checkpoint_path_ = "",

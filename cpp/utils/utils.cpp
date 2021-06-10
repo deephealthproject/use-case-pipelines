@@ -52,7 +52,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         ("c,checkpoint", "Path to the onnx checkpoint file", cxxopts::value<string>())
         ("i,input_channels", "Number of input channels", cxxopts::value<int>()->default_value(to_string(s.in_channels)))
         ("w,workers", "Number of producer workers", cxxopts::value<int>()->default_value(to_string(s.workers)))
-        ("q,queue_ratio", "Queue ratio size (queue size will be: batch_size*workers*queue_ratio)", cxxopts::value<int>()->default_value(to_string(s.queue_ratio)))
+        ("q,queue_ratio", "Queue ratio size (queue size will be: batch_size*workers*queue_ratio)", cxxopts::value<double>()->default_value(to_string(s.queue_ratio)))
         ("resume", "Resume training from this epoch", cxxopts::value<int>()->default_value(to_string(s.resume)))
         ("t,skip_train", "Skip training and perform only test", cxxopts::value<bool>()->default_value(to_string(s.skip_train)))
         ("h,help", "Print usage");
@@ -78,7 +78,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     s.resume = args["resume"].as<int>();
     s.skip_train = args["skip_train"].as<bool>();
     s.workers = args["workers"].as<int>();
-    s.queue_ratio = args["queue_ratio"].as<int>();
+    s.queue_ratio = args["queue_ratio"].as<double>();
 
     if (args.count("dataset_path")) {
         s.dataset_path = args["dataset_path"].as<path>();
