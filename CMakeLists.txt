@@ -62,7 +62,6 @@ endif()
 
 add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
-add_library(DATA_GENERATOR STATIC "")
 add_library(UTILS STATIC "")
 
 set(PROJECTS 
@@ -80,7 +79,6 @@ endforeach()
 add_subdirectory(cpp)
 add_subdirectory("cpp/metrics")
 add_subdirectory("cpp/models")
-add_subdirectory("cpp/data_generator")
 add_subdirectory("cpp/utils")
 
 set(CMAKE_FOLDER 3rdparty)
@@ -99,8 +97,7 @@ if(ecvl_FOUND)
     target_compile_features(COPY_GROUND_TRUTH_PNEUMOTHORAX PUBLIC cxx_std_17)
 
     target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET)
-    target_link_libraries(DATA_GENERATOR METRICS)
-    target_link_libraries(MODELS DATA_GENERATOR)
+    target_link_libraries(MODELS METRICS)
     target_link_libraries(UTILS MODELS)
     
     foreach(P ${PROJECTS})
@@ -113,7 +110,6 @@ if(ecvl_FOUND)
     set_target_properties(UTILS PROPERTIES FOLDER "Utils")
     set_target_properties(METRICS PROPERTIES FOLDER "Utils")
     set_target_properties(MODELS PROPERTIES FOLDER "Utils")
-    set_target_properties(DATA_GENERATOR PROPERTIES FOLDER "Utils")
     set_target_properties(COPY_GROUND_TRUTH_PNEUMOTHORAX PROPERTIES FOLDER "Utils")
 
     include_directories("${ecvl_DIR}/include")
