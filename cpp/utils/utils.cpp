@@ -57,7 +57,15 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         ("t,skip_train", "Skip training and perform only test", cxxopts::value<bool>()->default_value(to_string(s.skip_train)))
         ("h,help", "Print usage");
 
-    auto args = options.parse(argc, argv);
+    ecvl::optional<cxxopts::ParseResult> args_o;
+    try {
+        args_o.emplace(options.parse(argc, argv));
+    }
+    catch (const cxxopts::option_not_exists_exception& e) {
+        cout << "ERROR: " << e.what();
+        return false;
+    }
+    auto& args = args_o.value();
 
     if (args.count("help")) {
         cout << options.help() << endl;
@@ -95,6 +103,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     cout << "learning rate: " << s.lr << "\n";
     cout << "num_classes: " << s.num_classes << "\n";
     cout << "size: (" << s.size[0] << ", " << s.size[1] << ")\n";
+    cout << "workers: " << s.workers << '\n';
+    cout << "queue ratio: " << s.queue_ratio << '\n';
 
     s.checkpoint_dir = args["checkpoint_dir"].as<path>();
     create_directory(s.checkpoint_dir);
@@ -146,6 +156,19 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
             s.last_layer = true;
             in = getLayer(s.net, "data");
+            s.random_weights = false; // Use pretrained model
+        }
+        else if (!s.model.compare("onnx::resnet50_pytorch")) {
+            if (!filesystem::exists("resnet50_pytorch_imagenet.onnx")) {
+                Download("https://drive.google.com/u/1/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download");
+            }
+            s.net = import_net_from_onnx_file("resnet50_pytorch_imagenet.onnx", in_shape, DEV_CPU);
+            removeLayer(s.net, "Gemm_174"); // remove last Linear
+            auto top = getLayer(s.net, "Flatten_173"); // get flatten/reshape
+
+            out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
+            s.last_layer = true;
+            in = getLayer(s.net, "input");
             s.random_weights = false; // Use pretrained model
         }
         else if (!s.model.compare("onnx::resnet101")) {
