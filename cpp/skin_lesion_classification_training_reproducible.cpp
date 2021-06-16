@@ -1,4 +1,3 @@
-#include "data_generator/data_generator.h"
 #include "models/models.h"
 #include "utils/utils.h"
 
@@ -108,7 +107,6 @@ int main(int argc, char* argv[])
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
-    int workers = 6;
     int frozen_epochs = 10;
     bool freeze = true;
 
@@ -169,19 +167,15 @@ int main(int argc, char* argv[])
     // Replace the random seed with a fixed one
     AugmentationParam::SetSeed(50);
 
-    DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, nullptr } };
+    DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, validation_augs } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ecvl::ColorType::RGB);
-    // Create producer thread with 'DLDataset d' and 'std::queue q'
-    int num_samples = vsize(d.GetSplit());
-    int num_batches = num_samples / s.batch_size;
-    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, workers);
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::none, s.workers, s.queue_ratio, { true, false, false });
 
-    d.SetSplit(SplitType::validation);
-    int num_samples_validation = vsize(d.GetSplit());
-    int num_batches_validation = num_samples_validation / s.batch_size;
+    int num_batches_training = d.GetNumBatches(SplitType::training);
+    int num_batches_validation = d.GetNumBatches(SplitType::validation);
+    //int num_batches_test = d.GetNumBatches(SplitType::test);
 
     Tensor* output, * target, * result, * single_image;
     float sum = 0.f, ca = 0.f, best_metric = 0.f, mean_metric;
@@ -210,6 +204,7 @@ int main(int argc, char* argv[])
             }
         }*/
 
+        d.SetSplit(SplitType::training);
         auto current_path{ s.result_dir / path("Epoch_" + to_string(i)) };
         if (s.save_images) {
             for (const auto& c : d.classes_) {
@@ -217,62 +212,75 @@ int main(int argc, char* argv[])
             }
         }
 
-        d.SetSplit(SplitType::training);
-        // Reset errors
-        reset_loss(s.net); // for train_batch
-        total_metric.clear();
+        // Reset errors for train_batch
+        reset_loss(s.net);
 
-        // Shuffle training list
-        shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-        d.ResetAllBatches();
+        // Resize to batch size if we have done a previous resize
+        if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+            s.net->resize(s.batch_size);
+        }
 
-        d_generator_t.Start();
-        set_mode(s.net, 1);
+        // Reset and shuffle training list
+        d.ResetBatch(d.current_split_, true);
+
+        d.Start();
         // Feed batches to the model
-        for (int j = 0; d_generator_t.HasNext() /* j < num_batches */; ++j) {
+        for (int j = 0; j < num_batches_training; ++j) {
             tm.reset();
             tm.start();
-            cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
-            cout << "|fifo| " << d_generator_t.Size() << " - ";
+            cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_training - 1 << ") - ";
+            cout << "|fifo| " << d.GetQueueSize() << " - ";
 
-            Tensor* x, * y;
             // Load a batch
-            if (d_generator_t.PopBatch(x, y)) {
-                // Check input images
-                //for (int ind = 0; ind < s.batch_size; ++ind) {
-                //    unique_ptr<Tensor> tmp(x->select({ to_string(ind), ":", ":", ":" }));
-                //    tmp->mult_(255.);
-                //    tmp->normalize_(0.f, 255.f);
-                //    tmp->save("images/train_image_" + to_string(j) + "_" + to_string(ind) + ".png");
-                //}
+            auto [samples, x, y] = d.GetBatch();
 
-                // Train batch
-                train_batch(s.net, { x }, { y }, indices);
+            // Check input images
+            //for (int ind = 0; ind < s.batch_size; ++ind) {
+            //    unique_ptr<Tensor> tmp(x->select({ to_string(ind), ":", ":", ":" }));
+            //    tmp->mult_(255.);
+            //    tmp->normalize_(0.f, 255.f);
+            //    tmp->save("../images/train_image_" + to_string(j) + "_" + to_string(ind) + ".png");
+            //}
 
-                // Print errors
-                print_loss(s.net, j);
-
-                delete x;
-                delete y;
+            // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+            if (j == num_batches_training - 1 && x->shape[0] != s.batch_size) {
+                s.net->resize(x->shape[0]);
             }
+
+            // Train batch
+            train_batch(s.net, { x.get() }, { y.get() });
+
+            // Print errors
+            print_loss(s.net, j);
+
             tm.stop();
             cout << "Elapsed time: " << tm.getTimeSec() << endl;
         }
-        d_generator_t.Stop();
+        d.Stop();
         tm_epoch.stop();
         cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
 
         // Validation
         d.SetSplit(SplitType::validation);
-        set_mode(s.net, 0);
         cout << "Starting validation:" << endl;
-
+        // Resize to batch size if we have done a previous resize
+        if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+            s.net->resize(s.batch_size);
+        }
+        d.Start();
         for (int j = 0, n = 0; j < num_batches_validation; ++j) {
-            cout << "Validation: Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
-                << ") - ";
+            cout << "validation: Epoch " << i << '/' << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1 << ") - ";
+            cout << "|fifo| " << d.GetQueueSize() << " - ";
 
             // Load a batch
-            d.LoadBatch(x_val, y_val);
+            auto [samples, x, y] = d.GetBatch();
+
+            auto current_bs = x->shape[0];
+            // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+            if (j == num_batches_validation - 1 && current_bs != s.batch_size) {
+                s.net->resize(current_bs);
+            }
+
             // Evaluate batch
             forward(s.net, { x_val }); // forward does not require reset_loss
             output = getOutput(out);
