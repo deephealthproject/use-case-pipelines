@@ -77,9 +77,9 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
 
                 for (auto& contour : contours) {
                     for (auto c : contour) {
-                        *tmp.Ptr({ c[0], c[1], 0 }) = 0;
+                        *tmp.Ptr({ c[0], c[1], 0 }) = 255;
                         *tmp.Ptr({ c[0], c[1], 1 }) = 0;
-                        *tmp.Ptr({ c[0], c[1], 2 }) = 255;
+                        *tmp.Ptr({ c[0], c[1], 2 }) = 0;
                     }
                 }
 
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
 
                 auto current_bs = x->shape[0];
                 // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
-                if (j == num_batches_validation - 1 && current_bs != s.batch_size) {
+                if (j == num_batches_training - 1 && current_bs != s.batch_size) {
                     s.net->resize(current_bs);
                 }
 

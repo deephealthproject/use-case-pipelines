@@ -69,7 +69,7 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
                     }
                 }
 
-                unique_ptr<Tensor> single_image(x->select({ to_string(j) }));
+                unique_ptr<Tensor> single_image(x->select({ to_string(k) }));
                 single_image->mult_(255.);
                 single_image->normalize_(0.f, 255.f);
                 TensorToView(single_image.get(), img_t);

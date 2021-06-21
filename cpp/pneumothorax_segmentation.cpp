@@ -144,9 +144,10 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
             }
 
             if (s.save_images) {
+                Image pred_i;
                 pred->mult_(255.);
                 ImRead(samples[k].location_[0], orig_img);
-                ResizeDim(pred_t, pred_t, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
+                ResizeDim(pred_t, pred_i, { orig_img.Width(), orig_img.Height() }, InterpolationType::nearest);
 
                 if (type == "validation") {
                     // Save original image fused together with prediction (red mask) and ground truth (green mask)
@@ -154,11 +155,11 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
                     ChangeColorSpace(orig_img, orig_img, ColorType::BGR);
 
                     View<DataType::uint8> v_orig(orig_img);
-                    auto i_pred = pred_t.Begin();
+                    auto i_pred = pred_i.Begin<float>();
                     auto i_gt = orig_gt.Begin<uint8_t>();
 
-                    for (int c = 0; c < pred_t.Width(); ++c) {
-                        for (int r = 0; r < pred_t.Height(); ++r, ++i_pred, ++i_gt) {
+                    for (int c = 0; c < pred_i.Width(); ++c) {
+                        for (int r = 0; r < pred_i.Height(); ++r, ++i_pred, ++i_gt) {
                             // Replace in the green channel of the original image pixels that are 255 in the ground truth mask
                             if (*i_gt == 255) {
                                 v_orig({ r, c, 1 }) = 255;
@@ -173,7 +174,7 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
                     ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), orig_img);
                 }
                 else {
-                    ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), pred_t);
+                    ImWrite(current_path / samples[k].location_[0].filename().replace_extension(".png"), pred_i);
                 }
             }
         }
@@ -226,15 +227,15 @@ int main(int argc, char* argv[])
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         OneOfAugmentationContainer(
-                0.3,
-                AugGammaContrast({ 0,3 }),
-                AugBrightness({ 0, 30 })
+            0.3,
+            AugGammaContrast({ 0,3 }),
+            AugBrightness({ 0, 30 })
         ),
         OneOfAugmentationContainer(
-                0.3,
-                AugElasticTransform({ 30, 120 }, { 3, 6 }),
-                AugGridDistortion({ 2, 5 }, { -0.3f, 0.3f }),
-                AugOpticalDistortion({ -0.3f, 0.3f }, { -0.1f, 0.1f })
+            0.3,
+            AugElasticTransform({ 30, 120 }, { 3, 6 }),
+            AugGridDistortion({ 2, 5 }, { -0.3f, 0.3f }),
+            AugOpticalDistortion({ -0.3f, 0.3f }, { -0.1f, 0.1f })
         ),
         AugRotate({ -30, 30 }),
         AugToFloat32(255, 255)
@@ -298,7 +299,7 @@ int main(int argc, char* argv[])
 
                 auto current_bs = x->shape[0];
                 // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
-                if (j == num_batches_validation - 1 && current_bs != s.batch_size) {
+                if (j == num_batches_training - 1 && current_bs != s.batch_size) {
                     s.net->resize(current_bs);
                 }
 
