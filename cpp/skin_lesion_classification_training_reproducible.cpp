@@ -242,6 +242,7 @@ int main(int argc, char* argv[])
 
             delete output;
         }
+        d.Stop();
 
         mean_metric = accumulate(total_metric.begin(), total_metric.end(), 0.0f) / (total_metric.size() * s.batch_size);
         cout << "Validation categorical accuracy: " << mean_metric << endl;
