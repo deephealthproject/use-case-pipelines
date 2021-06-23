@@ -106,8 +106,6 @@ int main(int argc, char* argv[])
     iota(indices.begin(), indices.end(), 0);
     cv::TickMeter tm;
     cv::TickMeter tm_epoch;
-    Tensor* x_val = new Tensor({ s.batch_size, d.n_channels_, s.size[0], s.size[1] });
-    Tensor* y_val = new Tensor({ s.batch_size, static_cast<int>(d.classes_.size()) });
     cout << "Starting training" << endl;
     for (int i = 0; i < s.epochs; ++i) {
         tm_epoch.reset();
@@ -178,6 +176,8 @@ int main(int argc, char* argv[])
 
         // Validation
         d.SetSplit(SplitType::validation);
+        d.ResetBatch(d.current_split_); // Reset batch without shuffling
+
         cout << "Starting validation:" << endl;
         // Resize to batch size if we have done a previous resize
         if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
@@ -198,15 +198,15 @@ int main(int argc, char* argv[])
             }
 
             // Evaluate batch
-            forward(s.net, { x_val }); // forward does not require reset_loss
+            forward(s.net, { x.get() }); // forward does not require reset_loss
             output = getOutput(out);
-            ca = metric_fn->value(y_val, output);
+            ca = metric_fn->value(y.get(), output);
 
             total_metric.push_back(ca);
             if (s.save_images) {
                 for (int k = 0; k < s.batch_size; ++k, ++n) {
                     result = output->select({ to_string(k) });
-                    target = y_val->select({ to_string(k) });
+                    target = y->select({ to_string(k) });
                     //result->toGPU();
                     //target->toGPU();
                     float max = std::numeric_limits<float>::min();
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
                         }
                     }
 
-                    single_image = x_val->select({ to_string(k) });
+                    single_image = x->select({ to_string(k) });
                     TensorToView(single_image, img_t);
                     img_t.colortype_ = ColorType::BGR;
                     single_image->mult_(255.);
@@ -258,7 +258,5 @@ int main(int argc, char* argv[])
         of.close();
     }
 
-    delete x_val;
-    delete y_val;
     return EXIT_SUCCESS;
 }
