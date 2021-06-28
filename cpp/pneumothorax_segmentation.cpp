@@ -117,6 +117,7 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
         }
 
         // Evaluate batch
+        set_mode(s.net, TSMODE);
         forward(s.net, { x.get() }); // forward does not require reset_loss
         unique_ptr<Tensor> output(getOutput(out));
 
@@ -304,6 +305,7 @@ int main(int argc, char* argv[])
                 }
 
                 // Train batch
+                // set_mode(s.net, TRMODE) // not necessary because it's already inside the train_batch
                 train_batch(s.net, { x.get() }, { y.get() });
 
                 // Print errors

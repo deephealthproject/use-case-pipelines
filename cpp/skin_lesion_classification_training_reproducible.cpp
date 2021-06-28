@@ -162,6 +162,7 @@ int main(int argc, char* argv[])
             }
 
             // Train batch
+            // set_mode(s.net, TRMODE) // not necessary because it's already inside the train_batch
             train_batch(s.net, { x.get() }, { y.get() });
 
             // Print errors
@@ -198,6 +199,7 @@ int main(int argc, char* argv[])
             }
 
             // Evaluate batch
+            set_mode(s.net, TSMODE);
             forward(s.net, { x.get() }); // forward does not require reset_loss
             output = getOutput(out);
             ca = metric_fn->value(y.get(), output);
