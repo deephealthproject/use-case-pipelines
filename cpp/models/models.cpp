@@ -173,44 +173,53 @@ layer UNet(layer x, const int& num_classes)
     layer x4;
     layer x5;
 
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
+    constexpr bool USE_CONCAT = true;
+    constexpr int depth = 64;
+
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+
     x2 = MaxPool(x, { 2,2 }, { 2,2 });
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x3 = MaxPool(x2, { 2,2 }, { 2,2 });
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x4 = MaxPool(x3, { 2,2 }, { 2,2 });
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x5 = MaxPool(x4, { 2,2 }, { 2,2 });
-    x5 = ReLu(BatchNormalization(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same")));
-    x5 = ReLu(BatchNormalization(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same")));
-    x5 = UpSampling(x5, { 2,2 });
-    x5 = Pad(x5, { 0,1,1,0 }); // Not Working: error with padding
-    x5 = BatchNormalization(Conv(x5, 512, { 2,2 }, { 1, 1 }, "same"));
+    x5 = LeakyReLu(BatchNormalization(Conv(x5, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x5 = LeakyReLu(BatchNormalization(Conv(x5, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
 
-    x4 = Concat({ x4, x5 });
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = BatchNormalization(Conv(UpSampling(x4, { 2,2 }), 256, { 2,2 }, { 1, 1 }, "same"));
+    x5 = BatchNormalization(Conv(UpSampling(x5, { 2,2 }), 8 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x3 = Concat({ x3, x4 });
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = BatchNormalization(Conv(UpSampling(x3, { 2,2 }), 128, { 2,2 }, { 1, 1 }, "same"));
+    if (USE_CONCAT) x4 = Concat({ x4,x5 });
+    else x4 = Sum(x4, x5);
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = BatchNormalization(Conv(UpSampling(x4, { 2,2 }), 4 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x2 = Concat({ x2, x3 });
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = BatchNormalization(Conv(UpSampling(x2, { 2,2 }), 64, { 2,2 }, { 1, 1 }, "same"));
+    if (USE_CONCAT) x3 = Concat({ x3,x4 });
+    else x3 = Sum(x3, x4);
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = BatchNormalization(Conv(UpSampling(x3, { 2,2 }), 2 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x = Concat({ x, x2 });
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = Conv(x, num_classes, { 1,1 });
-    x = Sigmoid(x);
+    if (USE_CONCAT) x2 = Concat({ x2,x3 });
+    else x2 = Sum(x2, x3);
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = BatchNormalization(Conv(UpSampling(x2, { 2,2 }), depth, { 3,3 }, { 1, 1 }, "same"));
+
+    if (USE_CONCAT) x = Concat({ x,x2 });
+    else x = Sum(x, x2);
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = Sigmoid(Conv(x, num_classes, { 1,1 }, { 1, 1 }, "same"));
 
     return x;
 }
