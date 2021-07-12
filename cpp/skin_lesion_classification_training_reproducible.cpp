@@ -96,7 +96,6 @@ int main(int argc, char* argv[])
     Tensor* output, * target, * result, * single_image;
     float sum = 0.f, ca = 0.f, best_metric = 0.f, mean_metric;
 
-    vector<float> total_metric;
     Metric* metric_fn = getMetric("accuracy");
     View<DataType::float32> img_t;
     ofstream of;
@@ -108,6 +107,7 @@ int main(int argc, char* argv[])
     cv::TickMeter tm_epoch;
     cout << "Starting training" << endl;
     for (int i = 0; i < s.epochs; ++i) {
+        vector<float> total_metric;
         tm_epoch.reset();
         tm_epoch.start();
 
