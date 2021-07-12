@@ -136,9 +136,8 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
 
 |                     |   Model    |   Metric   |  Validation  |  Test    |  ONNX  
 ----------------------|------------|------------|--------------|----------|---------------------------------------
-| ISIC classification |   ResNet50    |  Accuracy  |     0.854    |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
-| ISIC segmentation   |  SegNetBN  |    MIoU    |     0.678    |  0.6551  | [download](https://drive.google.com/uc?id=1wMlD4lUiEOnxY0rC1-_289XVwC66Zop0&export=download)
-        
+| ISIC classification |   ResNet50    |  Accuracy  |  0.854  |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
+| ISIC segmentation   |  U-Net  |    MIoU    |  0.754  |  0.729  | [download](https://drive.google.com/uc?id=16Xu_w1LJa1m2f7SIDxInmS5lv6PN_s7G&export=download)
 
 - Examples of output for the pre-trained models provided:
     1. *ISIC segmentation test set*:
