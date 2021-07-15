@@ -25,7 +25,7 @@ public:
         DatasetAugmentations augs,
         ColorType ctype = ColorType::RGB,
         ColorType ctype_gt = ColorType::GRAY,
-        int num_workers = 1,
+        unsigned num_workers = 1,
         double queue_ratio_size = 1.,
         vector<bool> drop_last = {},
         bool verify = false) :
@@ -208,6 +208,12 @@ int main(int argc, char* argv[])
     Settings s(1, { 512,512 }, "SegNet", "dice", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
+    }
+
+    layer out = getOut(s.net)[0];
+    if (typeid(out) != typeid(LActivation)){
+        out = Sigmoid(out);
+        s.net = Model({ s.net->lin[0] }, { out });
     }
 
     // Build model

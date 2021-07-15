@@ -126,6 +126,12 @@ int main(int argc, char* argv[])
     }
     constexpr float lr_step = 0.1f; // step for the learning rate scheduler
 
+    layer out = getOut(s.net)[0];
+    if (typeid(out) != typeid(LActivation)){
+        out = Sigmoid(out);
+        s.net = Model({ s.net->lin[0] }, { out });
+    }
+
     // Build model
     build(s.net,
         adam(s.lr),      // Optimizer
