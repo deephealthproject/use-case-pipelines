@@ -46,7 +46,6 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
         }
 
         // Evaluate batch
-        set_mode(s.net, TSMODE);
         forward(s.net, { x.get() }); // forward does not require reset_loss
         unique_ptr<Tensor> output(getOutput(out));
 
@@ -118,6 +117,9 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
 
 int main(int argc, char* argv[])
 {
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "Start at " << ctime(&now) << endl;
+
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
     Settings s(1, { 224,224 }, "onnx::unet_resnet101", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6);
@@ -127,7 +129,7 @@ int main(int argc, char* argv[])
     constexpr float lr_step = 0.1f; // step for the learning rate scheduler
 
     layer out = getOut(s.net)[0];
-    if (typeid(out) != typeid(LActivation)){
+    if (typeid(*out) != typeid(LActivation)){
         out = Sigmoid(out);
         s.net = Model({ s.net->lin[0] }, { out });
     }
@@ -268,6 +270,7 @@ int main(int argc, char* argv[])
                 it = 0;
             }
 
+            set_mode(s.net, TSMODE);
             Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
 
             tm_epoch.stop();
@@ -281,7 +284,11 @@ int main(int argc, char* argv[])
         create_directory(current_path);
         create_directory(s.result_dir / "test Ground Truth");
     }
+    set_mode(s.net, TSMODE);
     Inference("test", d, s, num_batches_test, epoch, current_path, best_metric);
+
+    now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "End at " << ctime(&now) << endl;
 
     return EXIT_SUCCESS;
 }

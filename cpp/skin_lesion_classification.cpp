@@ -43,7 +43,6 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
         }
 
         // Evaluate batch
-        set_mode(s.net, TSMODE);
         forward(s.net, { x.get() }); // forward does not require reset_loss
         unique_ptr<Tensor> output(getOutput(out));
         ca = metric_fn->value(y.get(), output.get());
@@ -107,6 +106,9 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
 
 int main(int argc, char* argv[])
 {
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "Start at " << ctime(&now) << endl;
+
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
     Settings s(8, { 224,224 }, "onnx::resnet101", "sce", 1e-4f, "skin_lesion_classification", "", 100, 8, 4, 5);
@@ -233,6 +235,7 @@ int main(int argc, char* argv[])
             }
             d.Stop();
 
+            set_mode(s.net, TSMODE);
             Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
 
             tm_epoch.stop();
@@ -248,7 +251,11 @@ int main(int argc, char* argv[])
         }
     }
 
+    set_mode(s.net, TSMODE);
     Inference("test", d, s, num_batches_test, epoch, current_path, best_metric);
+
+    now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "End at " << ctime(&now) << endl;
 
     return EXIT_SUCCESS;
 }

@@ -117,7 +117,6 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
         }
 
         // Evaluate batch
-        set_mode(s.net, TSMODE);
         forward(s.net, { x.get() }); // forward does not require reset_loss
         unique_ptr<Tensor> output(getOutput(out));
 
@@ -203,6 +202,9 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
 
 int main(int argc, char* argv[])
 {
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "Start at " << ctime(&now) << endl;
+
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpu, input_channels
     Settings s(1, { 512,512 }, "SegNet", "dice", 0.0001f, "pneumothorax_segmentation", "", 50, 2, 6, 6, {}, 1);
@@ -211,7 +213,7 @@ int main(int argc, char* argv[])
     }
 
     layer out = getOut(s.net)[0];
-    if (typeid(out) != typeid(LActivation)){
+    if (typeid(*out) != typeid(LActivation)){
         out = Sigmoid(out);
         s.net = Model({ s.net->lin[0] }, { out });
     }
@@ -322,6 +324,7 @@ int main(int argc, char* argv[])
             }
             d.Stop();
 
+            set_mode(s.net, TSMODE);
             Inference("validation", d, s, num_batches_validation, e, current_path);
 
             tm_epoch.stop();
@@ -334,7 +337,11 @@ int main(int argc, char* argv[])
     if (s.save_images) {
         create_directory(current_path);
     }
+    set_mode(s.net, TSMODE);
     Inference("test", d, s, num_batches_test, epoch, current_path);
+
+    now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "End at " << ctime(&now) << endl;
 
     return EXIT_SUCCESS;
 }

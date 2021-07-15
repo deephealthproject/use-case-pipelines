@@ -18,6 +18,9 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "Start at " << ctime(&now) << endl;
+
     // Download pretrained resnet50 created with pytorch
     if (!filesystem::exists("resnet50_pytorch_imagenet.onnx")) {
         system("curl -O -J -L \"https://drive.google.com/u/1/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download\"");
@@ -184,6 +187,8 @@ int main(int argc, char* argv[])
         if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
             s.net->resize(s.batch_size);
         }
+
+        set_mode(s.net, TSMODE);
         d.Start();
         for (int j = 0, n = 0; j < num_batches_validation; ++j) {
             cout << "validation: Epoch " << i << '/' << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1 << ") - ";
@@ -199,7 +204,6 @@ int main(int argc, char* argv[])
             }
 
             // Evaluate batch
-            set_mode(s.net, TSMODE);
             forward(s.net, { x.get() }); // forward does not require reset_loss
             output = getOutput(out);
             ca = metric_fn->value(y.get(), output);
@@ -259,6 +263,9 @@ int main(int argc, char* argv[])
         of << "Epoch " << i << " - Total categorical accuracy: " << mean_metric << endl;
         of.close();
     }
+
+    now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "End at " << ctime(&now) << endl;
 
     return EXIT_SUCCESS;
 }
