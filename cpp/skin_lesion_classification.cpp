@@ -116,6 +116,12 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
+    layer out = getOut(s.net)[0];
+    if (typeid(*out) != typeid(LActivation)){
+        out = Softmax(out);
+        s.net = Model({ s.net->lin[0] }, { out });
+    }
+
     // Build model
     build(s.net,
         // sgd(s.lr, s.momentum),      // Optimizer
