@@ -15,9 +15,11 @@ The YAML datasets format is described [here](https://github.com/deephealthprojec
 #### MNIST
 Automatically downloaded and extracted by CMake.
 
-#### ISIC - [isic-archive.com](https://www.isic-archive.com/#!/topWithHeader/tightContentTop/challenges)
+#### ISIC - [isic-archive.com](https://challenge.isic-archive.com/challenges)
 
-_Classification_: Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. To run skin_lesion_classification you must provide the `--dataset_path` as `/path/to/isic_classification.yml` (section [Training options](#c-training-options) list other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
+[_Classification_](https://challenge.isic-archive.com/landing/2019): Download it from [here](https://drive.google.com/uc?id=1TCE-uswZ41nlqMe5SWHoCGF7Mtq6r15A&export=download) and extract it. To run skin_lesion_classification you must provide the `--dataset_path` as `/path/to/isic_classification.yml` (section [Training options](#c-training-options) list other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
+
+[_Classification_2018_](https://challenge.isic-archive.com/landing/2018/47): Download it from [here](https://drive.google.com/uc?id=15byB4RbfXv3-uVNdETRyAGWINMmBgYvI&export=download) and extract it. To run skin_lesion_classification_2018 you must provide the `--dataset_path` as `/path/to/isic_classification_2018.yml`.
 
 _Segmentation_: Download it from [here](https://drive.google.com/uc?id=1RyYa32x9aqwd2kkQpCZ4Xa2h_VcgH3wI&export=download) and extract it. To run skin_lesion_segmentation you must provide the the `--dataset_path` as `/path/to/isic_segmentation.yml` (section [Training options](#c-training-options) list other settings). See [Pretrained models](#pretrained-models) section to download checkpoints.
 

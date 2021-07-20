@@ -7,6 +7,9 @@ target_sources(MNIST_BATCH_FASTER PRIVATE
 target_sources(SKIN_LESION_CLASSIFICATION PRIVATE
         skin_lesion_classification.cpp
 )
+target_sources(SKIN_LESION_CLASSIFICATION_2018 PRIVATE
+        skin_lesion_classification_2018.cpp
+)
 target_sources(SKIN_LESION_CLASSIFICATION_TRAINING_REPR PRIVATE
         skin_lesion_classification_training_reproducible.cpp
 )
