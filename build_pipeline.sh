@@ -8,8 +8,8 @@ BUILD_TYPE=${1:-Release}
 DEPENDENCIES_DIR="${2:-deephealth_lin}"
 CMAKE_GENERATOR=${3:-"Unix Makefiles"}
 
-EDDL_VERSION="${4:-v0.9.2b}"
-ECVL_VERSION="${5:-v0.3.5}"
+EDDL_VERSION="${4:-v1.0.2a}"
+ECVL_VERSION="${5:-v0.4.1}"
 OPENCV_VERSION=3.4.13
 
 PROC=$(nproc)

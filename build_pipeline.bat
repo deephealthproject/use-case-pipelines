@@ -3,8 +3,8 @@ set UCP_PATH=%cd:\=/%
 set GENERATOR=Visual Studio 16 2019
 set DEVICE=GPU
 set DEPENDENCIES_DIR=deephealth_win
-set EDDL_VERSION=v0.9.2b
-set ECVL_VERSION=v0.3.5
+set EDDL_VERSION=v1.0.2a
+set ECVL_VERSION=v0.4.1
 set OPENCV_VERSION=4.5.1
 
 set CONFIGS=Debug Release
