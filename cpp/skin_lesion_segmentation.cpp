@@ -129,9 +129,9 @@ int main(int argc, char* argv[])
     constexpr float lr_step = 0.1f; // step for the learning rate scheduler
 
     layer out = getOut(s.net)[0];
-    if (typeid(*out) != typeid(LActivation)){
+    if (typeid(*out) != typeid(LActivation)) {
         out = Sigmoid(out);
-        s.net = Model({ s.net->lin[0] }, { out });
+        s.net = Model(s.net->lin, { out });
     }
 
     // Build model
@@ -149,6 +149,7 @@ int main(int argc, char* argv[])
     setlogfile(s.net, s.exp_name);
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
+        AugCenterCrop(),
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         AugFlip(.5),
@@ -159,14 +160,14 @@ int main(int argc, char* argv[])
         AugCoarseDropout({ 0, 0.03 }, { 0.02, 0.05 }, 0.25),
         AugToFloat32(255, 255),
         AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+//        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
         AugToFloat32(255, 255),
         AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-        //AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+//        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     // Replace the random seed with a fixed one to have reproducible experiments
@@ -205,7 +206,6 @@ int main(int argc, char* argv[])
 
             // Reset errors for train_batch
             reset_loss(s.net);
-
             // Resize to batch size if we have done a previous resize
             if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
                 s.net->resize(s.batch_size);
