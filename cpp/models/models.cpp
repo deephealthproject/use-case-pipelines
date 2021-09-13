@@ -124,50 +124,6 @@ layer VGG16_inception_2(layer x, const int& num_classes)
 
 layer SegNet(layer x, const int& num_classes)
 {
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = MaxPool(x, { 2,2 }, { 2,2 });
-    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
-    x = MaxPool(x, { 2,2 }, { 2,2 });
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = MaxPool(x, { 2,2 }, { 2,2 });
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = MaxPool(x, { 2,2 }, { 2,2 });
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = MaxPool(x, { 2,2 }, { 2,2 });
-
-    x = UpSampling(x, { 2,2 });
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = UpSampling(x, { 2,2 });
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 512, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = UpSampling(x, { 2,2 });
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 256, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
-    x = UpSampling(x, { 2,2 });
-    x = ReLu(Conv(x, 128, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = UpSampling(x, { 2,2 });
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = Conv(x, num_classes, { 3,3 }, { 1,1 }, "same");
-    x = Sigmoid(x);
-
-    return x;
-}
-
-layer SegNetBN(layer x, const int& num_classes)
-{
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
     x = MaxPool(x, { 2,2 }, { 2,2 });
@@ -210,127 +166,62 @@ layer SegNetBN(layer x, const int& num_classes)
     return x;
 }
 
-layer UNetWithPadding(layer x, const int& num_classes)
+layer UNet(layer x, const int& num_classes)
 {
     layer x2;
     layer x3;
     layer x4;
     layer x5;
 
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
+    constexpr bool USE_CONCAT = true;
+    constexpr int depth = 64;
+
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+
     x2 = MaxPool(x, { 2,2 }, { 2,2 });
-    x2 = ReLu(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same"));
-    x2 = ReLu(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same"));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x3 = MaxPool(x2, { 2,2 }, { 2,2 });
-    x3 = ReLu(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same"));
-    x3 = ReLu(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same"));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x4 = MaxPool(x3, { 2,2 }, { 2,2 });
-    x4 = ReLu(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same"));
-    x4 = ReLu(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same"));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+
     x5 = MaxPool(x4, { 2,2 }, { 2,2 });
-    x5 = ReLu(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same"));
-    x5 = ReLu(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same"));
-    x5 = Conv(UpSampling(x5, { 2,2 }), 512, { 2,2 }, { 1, 1 }, "same");
+    x5 = LeakyReLu(BatchNormalization(Conv(x5, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x5 = LeakyReLu(BatchNormalization(Conv(x5, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
 
-    x4 = Concat({ x4, x5 });
-    x4 = ReLu(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same"));
-    x4 = ReLu(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same"));
-    x4 = Conv(UpSampling(x4, { 2,2 }), 256, { 2,2 }, { 1, 1 }, "same");
+    x5 = BatchNormalization(Conv(UpSampling(x5, { 2,2 }), 8 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x3 = Concat({ x3, x4 });
-    x3 = ReLu(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same"));
-    x3 = ReLu(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same"));
-    x3 = Conv(UpSampling(x3, { 2,2 }), 128, { 2,2 }, { 1, 1 }, "same");
+    if (USE_CONCAT) x4 = Concat({ x4,x5 });
+    else x4 = Sum(x4, x5);
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = LeakyReLu(BatchNormalization(Conv(x4, 8 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x4 = BatchNormalization(Conv(UpSampling(x4, { 2,2 }), 4 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x2 = Concat({ x2, x3 });
-    x2 = ReLu(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same"));
-    x2 = ReLu(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same"));
-    x2 = Conv(UpSampling(x2, { 2,2 }), 64, { 2,2 }, { 1, 1 }, "same");
+    if (USE_CONCAT) x3 = Concat({ x3,x4 });
+    else x3 = Sum(x3, x4);
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = LeakyReLu(BatchNormalization(Conv(x3, 4 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x3 = BatchNormalization(Conv(UpSampling(x3, { 2,2 }), 2 * depth, { 3,3 }, { 1, 1 }, "same"));
 
-    x = Concat({ x, x2 });
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = ReLu(Conv(x, 64, { 3,3 }, { 1, 1 }, "same"));
-    x = Conv(x, num_classes, { 1,1 });
-    x = Sigmoid(x);
+    if (USE_CONCAT) x2 = Concat({ x2,x3 });
+    else x2 = Sum(x2, x3);
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = LeakyReLu(BatchNormalization(Conv(x2, 2 * depth, { 3,3 }, { 1, 1 }, "same")));
+    x2 = BatchNormalization(Conv(UpSampling(x2, { 2,2 }), depth, { 3,3 }, { 1, 1 }, "same"));
+
+    if (USE_CONCAT) x = Concat({ x,x2 });
+    else x = Sum(x, x2);
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = LeakyReLu(BatchNormalization(Conv(x, depth, { 3,3 }, { 1, 1 }, "same")));
+    x = Sigmoid(Conv(x, num_classes, { 1,1 }, { 1, 1 }, "same"));
 
     return x;
-}
-
-layer UNetWithPaddingBN(layer x, const int& num_classes)
-{
-    layer x2;
-    layer x3;
-    layer x4;
-    layer x5;
-
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x2 = MaxPool(x, { 2,2 }, { 2,2 });
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x3 = MaxPool(x2, { 2,2 }, { 2,2 });
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x4 = MaxPool(x3, { 2,2 }, { 2,2 });
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x5 = MaxPool(x4, { 2,2 }, { 2,2 });
-    x5 = ReLu(BatchNormalization(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same")));
-    x5 = ReLu(BatchNormalization(Conv(x5, 1024, { 3,3 }, { 1, 1 }, "same")));
-    x5 = BatchNormalization(Conv(UpSampling(x5, { 2,2 }), 512, { 2,2 }, { 1, 1 }, "same"));
-
-    x4 = Concat({ x4, x5 });
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = ReLu(BatchNormalization(Conv(x4, 512, { 3,3 }, { 1, 1 }, "same")));
-    x4 = BatchNormalization(Conv(UpSampling(x4, { 2,2 }), 256, { 2,2 }, { 1, 1 }, "same"));
-
-    x3 = Concat({ x3, x4 });
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = ReLu(BatchNormalization(Conv(x3, 256, { 3,3 }, { 1, 1 }, "same")));
-    x3 = BatchNormalization(Conv(UpSampling(x3, { 2,2 }), 128, { 2,2 }, { 1, 1 }, "same"));
-
-    x2 = Concat({ x2, x3 });
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = ReLu(BatchNormalization(Conv(x2, 128, { 3,3 }, { 1, 1 }, "same")));
-    x2 = BatchNormalization(Conv(UpSampling(x2, { 2,2 }), 64, { 2,2 }, { 1, 1 }, "same"));
-
-    x = Concat({ x, x2 });
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = ReLu(BatchNormalization(Conv(x, 64, { 3,3 }, { 1, 1 }, "same")));
-    x = Conv(x, num_classes, { 1,1 });
-    x = Sigmoid(x);
-
-    return x;
-}
-
-layer ResNet_01(layer x, const int& num_classes)
-{
-    layer l, l0, l1, l2, l3;
-
-    l1 = ReLu(BatchNormalization(Conv(x, 32, { 3,3 }, { 1,1 }, "same")));
-    l2 = ReLu(BatchNormalization(Conv(x, 32, { 5,5 }, { 1,1 }, "same")));
-    l3 = ReLu(BatchNormalization(Conv(x, 32, { 7,7 }, { 1,1 }, "same")));
-
-    l = Concat({ l1,l2,l3 });
-
-    for (int filters : {64, 64, 128, 128, 256, 512}) {
-        l = Conv(l, 1, { 3,3 }, { 1,1 }, "same");
-        l0 = MaxPool(l, { 2,2 }, { 2,2 });
-
-        l1 = ReLu(BatchNormalization(Conv(l0, filters, { 3,3 }, { 1,1 }, "same")));
-        l2 = ReLu(BatchNormalization(Conv(l1, filters, { 3,3 }, { 1,1 }, "same")));
-        l3 = ReLu(BatchNormalization(Conv(l2, filters, { 3,3 }, { 1,1 }, "same")));
-
-        l = Concat({ l1,l2,l3 });
-    }
-
-    l = Reshape(l, { -1 });
-    l = ReLu(BatchNormalization(Dense(l, 4096)));
-    l = ReLu(BatchNormalization(Dense(l, 2048)));
-    l = Softmax(Dense(l, num_classes));
-
-    return l;
 }
 
 layer BottleNeck(layer x, int planes, int stride, bool downsample = false)

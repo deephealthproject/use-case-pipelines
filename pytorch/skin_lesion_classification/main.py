@@ -49,6 +49,7 @@ def SkinLesionModel(model, pretrained=True):
     models_zoo = {
         'resnet18': models.resnet18(pretrained=pretrained),
         'resnet50': models.resnet50(pretrained=pretrained),
+        'resnet101': models.resnet101(pretrained=pretrained),
         'resnet152': models.resnet152(pretrained=pretrained),
         'resnext50_32x4d': torch.hub.load('pytorch/vision:v0.8.2', 'resnext50_32x4d', pretrained=pretrained,
                                           verbose=False),
@@ -121,7 +122,7 @@ def main(args):
 
     # loss_fn = nn.modules.loss.CrossEntropyLoss(weight=torch.from_numpy(get_weights()).to(device))
     loss_fn = nn.modules.loss.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-5)
 
     if args.ckpts is None:
         best_valid_acc = 0.

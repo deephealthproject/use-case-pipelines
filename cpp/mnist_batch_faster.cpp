@@ -1,12 +1,6 @@
-#include "data_generator/data_generator.h"
-#include "metrics/metrics.h"
-#include "models/models.h"
 #include "utils/utils.h"
 
-#include <algorithm>
-#include <fstream>
 #include <iostream>
-#include <random>
 
 #include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
@@ -18,8 +12,9 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-    // Settings
-    Settings s(10, { 28,28 }, "LeNet", "mse", 0.0001f);
+    // Default settings, they can be changed from command line
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpus, input_channels
+    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 4, 5, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -35,7 +30,8 @@ int main(int argc, char* argv[])
 
     // View model
     summary(s.net);
-    setlogfile(s.net, "mnist");
+    plot(s.net, s.exp_name + ".pdf");
+    setlogfile(s.net, s.exp_name);
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
         AugRotate({ -5, 5 }),
@@ -43,107 +39,102 @@ int main(int argc, char* argv[])
         AugGaussianBlur({ .0, .8 }),
         AugCoarseDropout({ 0, 0.3 }, { 0.02, 0.05 }, 0));
 
-    DatasetAugmentations dataset_augmentations{ { move(training_augs), nullptr, nullptr } };
+    DatasetAugmentations dataset_augmentations{ { training_augs, nullptr } };
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations);
-    // Create producer thread with 'DLDataset d' and 'std::queue q'
-    int num_samples = vsize(d.GetSplit());
-    int num_batches = num_samples / s.batch_size;
-    DataGenerator d_generator_t(&d, s.batch_size, s.size, { vsize(d.classes_) }, 12);
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::none, s.workers, s.queue_ratio, { true, false });
 
-    d.SetSplit(SplitType::test);
-    int num_samples_validation = vsize(d.GetSplit());
-    int num_batches_validation = num_samples_validation / s.batch_size;
-    DataGenerator d_generator_v(&d, s.batch_size, s.size, { vsize(d.classes_) }, 12);
+    // int num_batches_training = d.GetNumBatches("training");  // or
+    // int num_batches_training = d.GetNumBatches(0);           // where 0 is the split index, or
+    int num_batches_training = d.GetNumBatches(SplitType::training);
+    int num_batches_test = d.GetNumBatches(SplitType::test);
 
-    View<DataType::float32> img_t, gt_t;
-    Image orig_img_t, labels, tmp;
-    vector<vector<Point2i>> contours;
-    float best_metric = 0.;
-    ofstream of;
-    Eval evaluator;
-    mt19937 g(random_device{}());
+    cv::TickMeter tm, tm_epoch;
 
-    vector<int> indices(s.batch_size);
-    iota(indices.begin(), indices.end(), 0);
-    cv::TickMeter tm;
-    cv::TickMeter tm_epoch;
-
-    cout << "Starting training" << endl;
-    for (int i = 0; i < s.epochs; ++i) {
-        tm_epoch.reset();
-        tm_epoch.start();
-
+    if (!s.skip_train) {
         d.SetSplit(SplitType::training);
-        // Reset errors
-        reset_loss(s.net);
+        cout << "Starting training" << endl;
+        for (int e = s.resume; e < s.epochs; ++e) {
+            tm_epoch.reset();
+            tm_epoch.start();
 
-        // Shuffle training list
-        shuffle(std::begin(d.GetSplit()), std::end(d.GetSplit()), g);
-        d.ResetAllBatches();
+            // Reset errors
+            reset_loss(s.net);
 
-        d_generator_t.Start();
+            // Resize to batch size if we have done a previous resize
+            if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+                s.net->resize(s.batch_size);
+            }
 
-        // Feed batches to the model
-        for (int j = 0; d_generator_t.HasNext() /* j < num_batches */; ++j) {
-            tm.reset();
-            tm.start();
-            cout << "Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches - 1 << ") - ";
-            cout << "|fifo| " << d_generator_t.Size() << " - ";
+            // Reset and shuffle training list
+            d.ResetBatch(d.current_split_, true);
 
-            Tensor* x, * y;
+            d.Start();
+            // Feed batches to the model
+            for (int j = 0; j < num_batches_training; ++j) {
+                tm.reset();
+                tm.start();
+                cout << "Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_training - 1 << ") - ";
+                cout << "|fifo| " << d.GetQueueSize() << " - ";
 
-            // Load a batch
-            if (d_generator_t.PopBatch(x, y)) {
+                // Load a batch
+                auto [samples, x, y] = d.GetBatch();
+
                 // Preprocessing
                 x->div_(255.);
+
+                // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+                if (j == num_batches_training - 1 && x->shape[0] != s.batch_size) {
+                    s.net->resize(x->shape[0]);
+                }
 
                 // Train batch
-                train_batch(s.net, { x }, { y }, indices);
+                train_batch(s.net, { x.get() }, { y.get() });
 
+                // Print errors
                 print_loss(s.net, j);
 
-                delete x;
-                delete y;
+                tm.stop();
+                cout << "- Elapsed time: " << tm.getTimeSec() << endl;
             }
-            tm.stop();
+            d.Stop();
 
-            cout << "- Elapsed time: " << tm.getTimeSec() << endl;
+            tm_epoch.stop();
+            cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
+            cout << "Saving weights..." << endl;
+            save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
         }
-
-        d_generator_t.Stop();
-        tm_epoch.stop();
-        cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
-
-        // Validation
-        d.SetSplit(SplitType::test);
-        d_generator_v.Start();
-        evaluator.ResetEval();
-
-        cout << "Starting validation:" << endl;
-        for (int j = 0, n = 0; d_generator_v.HasNext(); ++j) {
-            cout << "Validation - Epoch " << i << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_validation - 1
-                << ") ";
-
-            Tensor* x, * y;
-
-            // Load a batch
-            if (d_generator_v.PopBatch(x, y)) {
-                // Preprocessing
-                x->div_(255.);
-
-                // Evaluate batch
-                evaluate(s.net, { x }, { y });
-
-                delete x;
-                delete y;
-            }
-        }
-
-        d_generator_v.Stop();
     }
+
+    // Test
+    cout << "Starting test" << endl;
+    // Resize to batch size if we have done a previous resize
+    if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+        s.net->resize(s.batch_size);
+    }
+    d.SetSplit(SplitType::test);
+
+    d.Start();
+    for (int i = 0; i < num_batches_test; ++i) {
+        cout << "Test - (batch " << i << "/" << num_batches_test - 1 << ") - ";
+        cout << "|fifo| " << d.GetQueueSize() << " - ";
+
+        // Load a batch
+        auto [samples, x, y] = d.GetBatch();
+
+        // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+        if (i == num_batches_test - 1 && x->shape[0] != s.batch_size) {
+            s.net->resize(x->shape[0]);
+        }
+
+        // Preprocessing
+        x->div_(255.);
+
+        // Evaluate batch
+        evaluate(s.net, { x.get() }, { y.get() });
+    }
+    d.Stop();
 
     return EXIT_SUCCESS;
 }

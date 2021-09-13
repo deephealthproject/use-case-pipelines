@@ -62,14 +62,13 @@ endif()
 
 add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
-add_library(DATA_GENERATOR STATIC "")
 add_library(UTILS STATIC "")
 
 set(PROJECTS 
     MNIST_BATCH MNIST_BATCH_FASTER 
-    SKIN_LESION_CLASSIFICATION_TRAINING_REPR SKIN_LESION_CLASSIFICATION_TRAINING SKIN_LESION_CLASSIFICATION_INFERENCE
-    SKIN_LESION_SEGMENTATION_TRAINING SKIN_LESION_SEGMENTATION_INFERENCE
-    PNEUMOTHORAX_SEGMENTATION_TRAINING PNEUMOTHORAX_SEGMENTATION_INFERENCE
+    SKIN_LESION_CLASSIFICATION_TRAINING_REPR SKIN_LESION_CLASSIFICATION SKIN_LESION_CLASSIFICATION_2018
+    SKIN_LESION_SEGMENTATION
+    PNEUMOTHORAX_SEGMENTATION
     COPY_GROUND_TRUTH_PNEUMOTHORAX
     )
 
@@ -80,7 +79,6 @@ endforeach()
 add_subdirectory(cpp)
 add_subdirectory("cpp/metrics")
 add_subdirectory("cpp/models")
-add_subdirectory("cpp/data_generator")
 add_subdirectory("cpp/utils")
 
 set(CMAKE_FOLDER 3rdparty)
@@ -88,7 +86,7 @@ add_subdirectory(3rdparty)
 set(CMAKE_FOLDER "")
 
 # Set SKIN_LESION_CLASSIFICATION_TRAINING as default
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION_TRAINING)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION)
 
 set(ECVL_BUILD ON CACHE BOOL "Whether to build ECVL or not (requires ECVL)")
 
@@ -99,8 +97,7 @@ if(ecvl_FOUND)
     target_compile_features(COPY_GROUND_TRUTH_PNEUMOTHORAX PUBLIC cxx_std_17)
 
     target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET)
-    target_link_libraries(DATA_GENERATOR METRICS)
-    target_link_libraries(MODELS DATA_GENERATOR)
+    target_link_libraries(MODELS METRICS)
     target_link_libraries(UTILS MODELS)
     
     foreach(P ${PROJECTS})
@@ -113,7 +110,6 @@ if(ecvl_FOUND)
     set_target_properties(UTILS PROPERTIES FOLDER "Utils")
     set_target_properties(METRICS PROPERTIES FOLDER "Utils")
     set_target_properties(MODELS PROPERTIES FOLDER "Utils")
-    set_target_properties(DATA_GENERATOR PROPERTIES FOLDER "Utils")
     set_target_properties(COPY_GROUND_TRUTH_PNEUMOTHORAX PROPERTIES FOLDER "Utils")
 
     include_directories("${ecvl_DIR}/include")
