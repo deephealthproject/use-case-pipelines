@@ -182,22 +182,22 @@ void Inference(const string& type, PneumoDataset& d, const Settings& s, const in
     }
     d.Stop();
 
-    mean_metric = evaluator.MeanMetric();
-    cout << "----------------------------------------" << endl;
-    cout << "Epoch " << epoch << " - Mean " << type << " Dice Coefficient: " << mean_metric << endl;
-    cout << "----------------------------------------" << endl;
-
     if (type == "validation") {
+        mean_metric = evaluator.MeanMetric();
+        cout << "----------------------------------------" << endl;
+        cout << "Epoch " << epoch << " - Mean " << type << " Dice Coefficient: " << mean_metric << endl;
+        cout << "----------------------------------------" << endl;
+
         if (mean_metric > d.best_metric_) {
             cout << "Saving weights..." << endl;
             save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
             d.best_metric_ = mean_metric;
         }
-    }
 
-    of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
-    of << "Epoch " << epoch << " - Total " << type << " Dice Coefficient: " << mean_metric << endl;
-    of.close();
+        of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
+        of << "Epoch " << epoch << " - Total " << type << " Dice Coefficient: " << mean_metric << endl;
+        of.close();
+    }
 }
 
 int main(int argc, char* argv[])

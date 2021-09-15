@@ -21,13 +21,19 @@ int main(int argc, char* argv[])
     time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
     cout << "Start at " << ctime(&now) << endl;
 
-    // Download pretrained resnet50 created with pytorch
-    if (!filesystem::exists("resnet50_pytorch_imagenet.onnx")) {
-        system("curl -O -J -L \"https://drive.google.com/u/1/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download\"");
-    }
-
     // Settings
     Settings s(8, { 224,224 }, "", "sce", 1e-5f, "skin_lesion_classification");
+    s.checkpoint_path = "resnet50_pytorch_imagenet.onnx";
+
+    // Download pretrained resnet50 created with pytorch
+    if (!filesystem::exists(s.checkpoint_path)) {
+        int ret = system("curl -O -J -L \"https://drive.google.com/u/1/uc?id=1jVVVgJcImHit9xkzxpu4I9Rho4Yh2k2H&export=download\"");
+        if (ret == -1) {
+            // The system method failed
+            throw runtime_error("Download of " + s.checkpoint_path + " failed");
+        }
+    }
+
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
