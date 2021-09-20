@@ -145,6 +145,15 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         else if (!s.model.compare("DeepLabV3Plus")) {
             out = DeepLabV3Plus(s.num_classes).forward(in);
         }
+        else if (!s.model.compare("resnet50")) {
+            out = ResNet50(in, s.num_classes);
+        }
+        else if (!s.model.compare("resnet101")) {
+            out = ResNet101(in, s.num_classes);
+        }
+        else if (!s.model.compare("resnet152")) {
+            out = ResNet152(in, s.num_classes);
+        }
         else if (!s.model.compare("onnx::resnet50")) {
             if (!filesystem::exists("resnet50-v1-7.onnx")) {
                 Download("https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet50-v1-7.onnx");
@@ -196,8 +205,9 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         }
         else {
             cout << ECVL_ERROR_MSG
-                << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus for segmentation;"
-                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, onnx::resnet101 for classification" << endl;
+                << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus, onnx::unet_resnet101 for segmentation;"
+                "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, resnet50, resnet101, resnet152, onnx::resnet50,"
+                "onnx::resnet50_pytorch, onnx::resnet101 for classification" << endl;
             return false;
         }
 

@@ -227,9 +227,14 @@ layer UNet(layer x, const int& num_classes)
 layer BottleNeck(layer x, int planes, int stride, bool downsample = false)
 {
     layer identity = x;
+    string pad = "same";
     // in_layer, out_channels, kernel, stride, padding, bias, groups, dilation
     x = BatchNormalization(Conv(x, planes, { 1,1 }, { 1,1 }, "same", false));
-    x = BatchNormalization(Conv(x, planes, { 3,3 }, { stride,stride }, "same", false));
+    if (stride == 2) {
+        x = Pad(x, { 0,0,1,1 });
+        pad = "valid";
+    }
+    x = BatchNormalization(Conv(x, planes, { 3,3 }, { stride,stride }, pad, false));
     x = ReLu(BatchNormalization(Conv(x, planes * 4, { 1,1 }, { 1,1 }, "same", false)));
     if (downsample) {
         identity = BatchNormalization(Conv(identity, planes * 4, { 1,1 }, { stride,stride }, "same", false));
@@ -239,8 +244,10 @@ layer BottleNeck(layer x, int planes, int stride, bool downsample = false)
 
 layer MakeResnet(layer x, const vector<pair<int, int>>& filters)
 {
-    x = ReLu(BatchNormalization(Conv(x, 64, { 7, 7 }, { 2, 2 }, "same", false)));
-    x = MaxPool(x, { 3, 3 }, { 2, 2 }, "same");
+    x = Pad(x, { 2,2,3,3 });
+    x = ReLu(BatchNormalization(Conv(x, 64, { 7, 7 }, { 2, 2 }, "valid", false)));
+    x = Pad(x, { 0,0,1,1 });
+    x = MaxPool(x, { 3, 3 }, { 2, 2 }, "valid");
     int i = 0;
     for (const auto& blocks : filters) {
         x = BottleNeck(x, blocks.second, 2 - (i == 0), true);
