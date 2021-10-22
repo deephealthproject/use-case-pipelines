@@ -9,7 +9,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on three different datasets (_MN
 - (Optional) Pneumothorax dataset.
 
 ### Datasets
-The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](datasets/isic_classification.yml), [ISIC segmentation](datasets/isic_segmentation.yml) and [Pneumothorax segmentation](datasets/pneumothorax.yml).
+The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](datasets/isic_classification.yml), [ISIC segmentation](datasets/isic_segmentation.yml), [Pneumothorax segmentation](datasets/pneumothorax.yml), [Kidney segmentation](datasets/kidney_segmentation.yml).
 
 
 #### MNIST
@@ -35,6 +35,8 @@ From the 2669 distinct training images with mask, 200 are randomly sampled as va
 - Training set: 3086 total images - 80% with mask and 20% without mask.
 - Validation set: 250 total images - 80% with mask and 20% without mask.
 
+#### KIDNEY SEGMENTATION
+UC11 dataset, images cannot be provided publicly.
 
 ### CUDA
 On Linux systems, starting from CUDA 10.1, cuBLAS libraries are installed in the `/usr/lib/<arch>-linux-gnu/` or `/usr/lib64/`. Create a symlink to resolve the issue:
@@ -99,13 +101,14 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     
 ## Training and inference
 
-The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION.
+The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION, KIDNEY_SEGMENTATION.
 
 - Training:
     1. MNIST_BATCH load the dataset with the deprecated ECVL LoadBatch which is not parallelized. All the other executables run with a custom number of parallel threads. Default settings [here](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/mnist_batch.cpp#L18).
     1. MNIST_BATCH_FASTER ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/mnist_batch_faster.cpp#L17)) and SKIN_LESION_CLASSIFICATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/skin_lesion_classification.cpp#L111)) train the neural network loading the dataset in batches (needed when the dataset is too large to fit in memory).
     1. SKIN_LESION_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/skin_lesion_segmentation.cpp#L122)) trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
     1. PNEUMOTHORAX_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/pneumothorax_segmentation.cpp#L219)) trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
+    1. KIDNEY_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/bd70e0ce905f368de846098388e7da9ab4126e98/cpp/kidney_segmentation.cpp#L191)) trains the neural network loading the dataset (images and their ground truth masks), dividing them in slices with a custom function for this specific segmentation task.
 - Inference:
     1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints.
 
@@ -140,6 +143,7 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
 ----------------------|------------|------------|--------------|----------|---------------------------------------
 | ISIC classification |   ResNet50    |  Accuracy  |  0.854  |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
 | ISIC segmentation   |  U-Net  |    MIoU    |  0.754  |  0.729  | [download](https://drive.google.com/uc?id=16Xu_w1LJa1m2f7SIDxInmS5lv6PN_s7G&export=download)
+| Kidney segmentation   |  U-Net  |    Dice    |  0.8786  |  0.8634  | [download](https://drive.google.com/uc?id=1HcTF2fJtZmwh0rovKA4Ol-q7s8zE8u9U&export=download)
 
 - Examples of output for the pre-trained models provided:
     1. *ISIC segmentation test set*:
