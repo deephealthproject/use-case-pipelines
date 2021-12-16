@@ -142,6 +142,7 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
 |                     |   Model    |   Metric   |  Validation  |  Test    |  ONNX  
 ----------------------|------------|------------|--------------|----------|---------------------------------------
 | ISIC classification |   ResNet50    |  Accuracy  |  0.854  |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
+| ISIC classification 2018 |   ResNet152    |  Accuracy  |  0.887  |  0.896 | [download](https://drive.google.com/file/d/1Cht7fDqfuUgQPvwVIWs93R9uWk3S5Ip9/view?usp=sharing)
 | ISIC segmentation   |  U-Net  |    MIoU    |  0.754  |  0.729  | [download](https://drive.google.com/uc?id=16Xu_w1LJa1m2f7SIDxInmS5lv6PN_s7G&export=download)
 | Kidney segmentation   |  U-Net  |    Dice    |  0.8786  |  0.8634  | [download](https://drive.google.com/uc?id=1HcTF2fJtZmwh0rovKA4Ol-q7s8zE8u9U&export=download)
 
