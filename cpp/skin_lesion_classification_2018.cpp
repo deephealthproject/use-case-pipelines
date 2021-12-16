@@ -14,7 +14,7 @@ void Inference(const string& type, DLDataset& d, Settings& s, const int num_batc
 {
     static int sched_patience = 10;
     const int sched_patience_init = 10;
-    const double sched_factor = 0.1;
+    const float sched_factor = 0.1f;
 
     float ca = 0.f, mean_metric;
     vector<float> total_metric;
@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
 
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(7, { 224,224 }, "onnx::resnet101", "sce", 1e-2f, "skin_lesion_classification_2018", "", 100, 8, 4, 5);
+    Settings s(7, { 224,224 }, "onnx::resnet152", "sce", 7e-05, "skin_lesion_classification_2018", "", 200, 16, 4, 5);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -140,8 +140,8 @@ int main(int argc, char* argv[])
 
     // Build model
     build(s.net,
-        sgd(s.lr, s.momentum, 1e-5f, true),      // Optimizer
-        //adam(s.lr),      // Optimizer
+    //  sgd(s.lr, s.momentum, 1e-5f, true),      // Optimizer
+        adam(s.lr),      // Optimizer
         { s.loss },                 // Loss
         { "categorical_accuracy" }, // Metric
         s.cs,                       // Computing Service
@@ -179,9 +179,6 @@ int main(int argc, char* argv[])
         //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
         AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
-
-    // Replace the random seed with a fixed one to have reproducible experiments
-    // AugmentationParam::SetSeed(50);
 
     DatasetAugmentations dataset_augmentations{ { training_augs, validation_augs, validation_augs } }; // use the same augmentations for validation and test
 

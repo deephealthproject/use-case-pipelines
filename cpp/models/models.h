@@ -2,6 +2,7 @@
 #define MODELS_H_
 
 #include "ecvl/support_eddl.h"
+#include "eddl/serialization/onnx/eddl_onnx.h"
 
 // Model LeNet (same as https://github.com/pytorch/examples/blob/master/mnist/main.py)
 eddl::layer LeNet(eddl::layer x, const int& num_classes);
@@ -33,7 +34,7 @@ class DeepLabV3Plus
     {
         eddl::layer residual = x;
         eddl::layer out = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, planes, { 1, 1 }, { 1, 1 }, "same", false), true));
-        out = eddl::Pad(out, vector<int>(4, dilation));
+        out = eddl::Pad(out, std::vector<int>(4, dilation));
         out = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(out, planes, { 3,3 }, { stride,stride }, "valid", false, 1, { dilation,dilation }), true));
         out = eddl::BatchNormalization(eddl::Conv2D(out, planes * block_expansion_, { 1, 1 }, { 1, 1 }, "same", false), true);
         if (downsample) {

@@ -1,6 +1,7 @@
 #include "models.h"
 
 using namespace eddl;
+using namespace std;
 
 layer LeNet(layer x, const int& num_classes)
 {

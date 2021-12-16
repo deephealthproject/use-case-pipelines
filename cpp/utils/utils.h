@@ -5,7 +5,7 @@
 #include "ecvl/core/filesystem.h"
 #include "ecvl/support_eddl.h"
 
-void Download(const string& url);
+void Download(const std::string& url);
 
 struct Settings
 {
@@ -34,20 +34,20 @@ struct Settings
         const std::string& model_,
         const std::string& loss_,
         const float& lr_,
-        const string& exp_name_ = "",
+        const std::string& exp_name_ = "",
         const ecvl::filesystem::path& dataset_path_ = "",
         const int& epochs_ = 100,
         const int& batch_size_ = 12,
         const int& workers_ = 1,
         const double& queue_ratio_ = 1.,
-        const vector<int>& gpus_ = {},
+        const std::vector<int>& gpus_ = {},
         const int& in_channels_ = 3,
-        const string& checkpoint_path_ = "",
+        const std::string& checkpoint_path_ = "",
         const int& resume_ = 0,
         const bool& skip_train_ = false,
         const int& lsb_ = 1,
         const bool& save_images_ = false,
-        const string& mem_ = "low_mem",
+        const std::string& mem_ = "low_mem",
         const float& momentum_ = 0.9,
         const ecvl::filesystem::path& result_dir_ = "../output_images",
         const ecvl::filesystem::path& checkpoint_dir_ = "../checkpoints"

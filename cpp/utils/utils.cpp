@@ -203,11 +203,19 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             in = getLayer(s.net, "input");
             s.random_weights = false; // Use pretrained model
         }
+        else if (!s.model.compare("onnx::resnet152")) {
+            s.net = download_resnet152(true, {3, 224, 224});
+            auto top = getLayer(s.net,"top");
+            out = Softmax(Dense(top, s.num_classes, true, "last_layer")); // true is for the bias
+            s.last_layer = true;
+            in = getLayer(s.net, "input");
+            s.random_weights = false; // Use pretrained model
+        }
         else {
             cout << ECVL_ERROR_MSG
                 << "You must specify one of these models: SegNet, UNet, DeepLabV3Plus, onnx::unet_resnet101 for segmentation;"
                 "LeNet, VGG16, VGG16_inception_1, VGG16_inception_2, resnet50, resnet101, resnet152, onnx::resnet50,"
-                "onnx::resnet50_pytorch, onnx::resnet101 for classification" << endl;
+                "onnx::resnet50_pytorch, onnx::resnet101, onnx::resnet152 for classification" << endl;
             return false;
         }
 
