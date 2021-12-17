@@ -45,6 +45,7 @@ public:
 
     void ProduceImageLabel(DatasetAugmentations& augs, Sample& elem) override
     {
+        Tensor* label_tensor = nullptr, * image_tensor = nullptr;
         Image img = elem.LoadImage(ctype_, false);
         Image gt = elem.LoadImage(ctype_gt_, true);
         const int slices = img.Channels();
@@ -63,11 +64,12 @@ public:
 
         // Push the slice and its ground truth to the queue
         for (int cur_slice = 0; cur_slice < slices; ++cur_slice) {
-            shared_ptr<LabelImage> label_push = make_shared<LabelImage>();
             View<DataType::int16> v_volume(img, { 0, 0, cur_slice}, { img.Width(), img.Height(), n_channels_ });
             View<DataType::int16> v_gt(gt, { 0, 0, cur_slice}, { gt.Width(), gt.Height(), n_channels_ });
-            label_push->gt = v_gt;
-            queue_.Push(elem, v_volume, label_push);
+            ImageToTensor(v_volume, image_tensor);
+            ImageToTensor(v_gt, label_tensor);
+
+            queue_.Push(elem, image_tensor, label_tensor);
         }
     }
 };
