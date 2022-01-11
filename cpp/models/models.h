@@ -22,13 +22,17 @@ eddl::layer ResNet50(eddl::layer x, const int& num_classes);
 eddl::layer ResNet101(eddl::layer x, const int& num_classes);
 eddl::layer ResNet152(eddl::layer x, const int& num_classes);
 
+eddl::layer Nabla(eddl::layer x, const int& num_classes);
+
 // From https://github.com/jfzhang95/pytorch-deeplab-xception
 // Depth-wise separable convolutions have been removed
 class DeepLabV3Plus
 {
     int num_classes_;
+    bool pretrained_ = true;
     const int block_expansion_ = 4;
     int inplanes_ = 64;
+    float bn_momentum = 0.9f, bn_eps = 1e-5f;
 
     eddl::layer bottleneck(eddl::layer x, int planes, int stride = 1, bool downsample = false, int dilation = 1, bool conv = false, bool norm = false)
     {
@@ -108,7 +112,7 @@ class DeepLabV3Plus
 
     eddl::layer ASPPModule(eddl::layer x, int planes, int kernel_size, int padding, int dilation)
     {
-        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, planes, { kernel_size,kernel_size }, { 1,1 }, "same", false, 1, { dilation,dilation }), true));
+        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, planes, { kernel_size,kernel_size }, { 1,1 }, "same", false, 1, { dilation,dilation }), true, bn_momentum, bn_eps));
         return x;
     }
     eddl::layer ASPP(eddl::layer x, int output_stride)
@@ -129,36 +133,45 @@ class DeepLabV3Plus
         eddl::layer x3 = ASPPModule(x, 256, 3, true, dilations[2]);
         eddl::layer x4 = ASPPModule(x, 256, 3, true, dilations[3]);
         eddl::layer x5 = eddl::GlobalAveragePool2D(x);
-        x5 = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x5, 256, { 1,1 }, { 1,1 }, "same", false), true));
+        x5 = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x5, 256, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         x5 = eddl::UpSampling2D(x5, { x4->getShape()[2], x4->getShape()[3] }, "bilinear");
         x = eddl::Concat({ x1,x2,x3,x4,x5 });
-        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 1,1 }, { 1,1 }, "same", false), true));
+        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         x = eddl::Dropout(x, 0.5f);
         return x;
     }
 
     eddl::layer Decoder(eddl::layer x, eddl::layer low_level_feat)
     {
-        low_level_feat = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(low_level_feat, 48, { 1,1 }, { 1,1 }, "same", false), true));
+        low_level_feat = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(low_level_feat, 48, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         //x = eddl::Scale(x, { low_level_feat->getShape()[2],low_level_feat->getShape()[3] });
         x = eddl::UpSampling2D(x, { 4,4 }, "bilinear");
         x = eddl::Concat({ x, low_level_feat });
 
-        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true)), 0.5f);
-        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true)), 0.1f);
+        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps)), 0.5f);
+        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps)), 0.1f);
         x = eddl::Conv2D(x, num_classes_, { 1,1 }, { 1,1 }, "same", false);
         return x;
     }
 
 public:
 
-    DeepLabV3Plus(int num_classes = 1) : num_classes_{ num_classes } {}
+    DeepLabV3Plus(int num_classes = 1, bool pretrained = true) : num_classes_{ num_classes }, pretrained_{ pretrained } {}
 
     eddl::layer forward(eddl::layer input, int output_stride = 16)
     {
-        std::vector<eddl::layer> backbone = ResNet101(input, output_stride);
-        auto x = backbone[0];
-        auto low_level_feat = backbone[1];
+        eddl::layer x, low_level_feat;
+        if (pretrained_) {
+            auto resnet101 = import_net_from_onnx_file("resnet101_simpl.onnx", { input->getShape()[1], input->getShape()[2], input->getShape()[3] }, 2);
+            input = eddl::getLayer(resnet101, "input"); // set input layer
+            x = eddl::getLayer(resnet101, "Relu_341");
+            low_level_feat = eddl::getLayer(resnet101, "Relu_35");
+        }
+        else {
+            std::vector<eddl::layer> backbone = ResNet101(input, output_stride);
+            x = backbone[0];
+            low_level_feat = backbone[1];
+        }
         x = ASPP(x, output_stride);
         x = Decoder(x, low_level_feat);
         x = eddl::UpSampling2D(x, { 4,4 }, "bilinear");

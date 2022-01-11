@@ -87,6 +87,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     s.skip_train = args["skip_train"].as<bool>();
     s.workers = args["workers"].as<int>();
     s.queue_ratio = args["queue_ratio"].as<double>();
+    s.in_channels = args["input_channels"].as<int>();
 
     if (args.count("dataset_path")) {
         s.dataset_path = args["dataset_path"].as<path>();
@@ -127,6 +128,9 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         if (!s.model.compare("SegNet")) {
             out = SegNet(in, s.num_classes);
         }
+        else if (!s.model.compare("Nabla")) {
+            out = Nabla(in, s.num_classes);
+        }
         else if (!s.model.compare("UNet")) {
             out = UNet(in, s.num_classes);
         }
@@ -144,6 +148,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         }
         else if (!s.model.compare("DeepLabV3Plus")) {
             out = DeepLabV3Plus(s.num_classes).forward(in);
+            s.random_weights = false; // Use pretrained model
         }
         else if (!s.model.compare("resnet50")) {
             out = ResNet50(in, s.num_classes);

@@ -28,7 +28,7 @@ struct Settings
     double queue_ratio;
 
     Settings() = delete;
-    ~Settings() { if(net) delete net; };
+    ~Settings() { if (net) delete net; };
     Settings(int num_classes_,
         const std::vector<int>& size_,
         const std::string& model_,
@@ -51,10 +51,10 @@ struct Settings
         const float& momentum_ = 0.9,
         const ecvl::filesystem::path& result_dir_ = "../output_images",
         const ecvl::filesystem::path& checkpoint_dir_ = "../checkpoints"
-        ) :
-        num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), exp_name(exp_name_), dataset_path(dataset_path_),
-        epochs(epochs_), batch_size(batch_size_), workers(workers_), queue_ratio(queue_ratio_), lsb(lsb_), gpu(gpus_), 
-        in_channels(in_channels_), save_images(save_images_), mem(mem_), momentum(momentum_), result_dir(result_dir_), 
+    ) :
+    num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), exp_name(exp_name_), dataset_path(dataset_path_),
+        epochs(epochs_), batch_size(batch_size_), workers(workers_), queue_ratio(queue_ratio_), lsb(lsb_), gpu(gpus_),
+        in_channels(in_channels_), save_images(save_images_), mem(mem_), momentum(momentum_), result_dir(result_dir_),
         checkpoint_dir(checkpoint_dir_), checkpoint_path(checkpoint_path_), skip_train(skip_train_), resume(resume_)
     {}
 };
