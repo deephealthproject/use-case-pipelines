@@ -1,0 +1,8 @@
+torch
+torchvision
+numpy
+tqdm
+opencv-python-headless
+PyYAML
+git+git://github.com/qubvel/segmentation_models.pytorch@master#egg=segmentation-models-pytorch
+albumentations

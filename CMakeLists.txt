@@ -62,21 +62,22 @@ endif()
 
 add_library(METRICS STATIC "")
 add_library(MODELS STATIC "")
-add_library(DATA_GENERATOR STATIC "")
 add_library(UTILS STATIC "")
-add_executable(MNIST_BATCH)
-add_executable(SKIN_LESION_CLASSIFICATION_TRAINING)
-add_executable(SKIN_LESION_SEGMENTATION_TRAINING)
-add_executable(SKIN_LESION_CLASSIFICATION_INFERENCE)
-add_executable(SKIN_LESION_SEGMENTATION_INFERENCE)
-add_executable(MS_SEGMENTATION_TRAINING)
-add_executable(PNEUMOTHORAX_SEGMENTATION_TRAINING)
-add_executable(PNEUMOTHORAX_SEGMENTATION_INFERENCE)
-add_executable(COPY_GROUND_TRUTH_PNEUMOTHORAX)
+set(PROJECTS 
+    MNIST_BATCH MNIST_BATCH_FASTER 
+    SKIN_LESION_CLASSIFICATION_TRAINING_REPR SKIN_LESION_CLASSIFICATION SKIN_LESION_CLASSIFICATION_2018
+    SKIN_LESION_SEGMENTATION
+    PNEUMOTHORAX_SEGMENTATION
+    COPY_GROUND_TRUTH_PNEUMOTHORAX
+    KIDNEY_SEGMENTATION
+    )
+
+foreach(P ${PROJECTS})
+    add_executable(${P})
+endforeach()
 add_subdirectory(cpp)
 add_subdirectory("cpp/metrics")
 add_subdirectory("cpp/models")
-add_subdirectory("cpp/data_generator")
 add_subdirectory("cpp/utils")
 
 set(CMAKE_FOLDER 3rdparty)
@@ -84,7 +85,7 @@ add_subdirectory(3rdparty)
 set(CMAKE_FOLDER "")
 
 # Set SKIN_LESION_CLASSIFICATION_TRAINING as default
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION_TRAINING)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT SKIN_LESION_CLASSIFICATION)
 
 set(ECVL_BUILD ON CACHE BOOL "Whether to build ECVL or not (requires ECVL)")
 
@@ -95,24 +96,18 @@ if(ecvl_FOUND)
     target_compile_features(COPY_GROUND_TRUTH_PNEUMOTHORAX PUBLIC cxx_std_17)
 
     target_link_libraries(METRICS ECVL_CORE ECVL_EDDL DATASET)
-    target_link_libraries(DATA_GENERATOR METRICS)
-    target_link_libraries(MODELS DATA_GENERATOR)
+    target_link_libraries(MODELS METRICS)
     target_link_libraries(UTILS MODELS)
-    target_link_libraries(MNIST_BATCH UTILS)
-    target_link_libraries(SKIN_LESION_CLASSIFICATION_TRAINING UTILS)
-    target_link_libraries(SKIN_LESION_SEGMENTATION_TRAINING UTILS)
-    target_link_libraries(SKIN_LESION_CLASSIFICATION_INFERENCE UTILS)
-    target_link_libraries(SKIN_LESION_SEGMENTATION_INFERENCE UTILS)
-    target_link_libraries(MS_SEGMENTATION_TRAINING UTILS)
-    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_TRAINING UTILS)
-    target_link_libraries(PNEUMOTHORAX_SEGMENTATION_INFERENCE UTILS)
+
+foreach(P ${PROJECTS})
+        target_link_libraries(${P} UTILS)
+    endforeach()
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         target_link_libraries(COPY_GROUND_TRUTH_PNEUMOTHORAX stdc++fs)
     endif()
     set_target_properties(UTILS PROPERTIES FOLDER "Utils")
     set_target_properties(METRICS PROPERTIES FOLDER "Utils")
     set_target_properties(MODELS PROPERTIES FOLDER "Utils")
-    set_target_properties(DATA_GENERATOR PROPERTIES FOLDER "Utils")
     set_target_properties(COPY_GROUND_TRUTH_PNEUMOTHORAX PROPERTIES FOLDER "Utils")
 
     include_directories("${ecvl_DIR}/include")
@@ -121,11 +116,12 @@ endif()
 
 # Download and unpack MNIST dataset
 if(DOWNLOAD_MNIST)
-    if (IS_DIRECTORY "${CMAKE_BINARY_DIR}/mnist")
-        message(STATUS "${CMAKE_BINARY_DIR}/mnist dataset folder already exists, download skipped!")
+    if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/data/mnist")
+        message(STATUS "${CMAKE_SOURCE_DIR}/data/mnist dataset folder already exists, download skipped!")
     else()
+        file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/data")
         message(STATUS "Downloading MNIST...")
-        file(DOWNLOAD https://www.dropbox.com/s/8rslhjpects95k0/mnist.zip "${CMAKE_BINARY_DIR}/mnist.zip"
+        file(DOWNLOAD https://www.dropbox.com/s/8rslhjpects95k0/mnist.zip "${CMAKE_SOURCE_DIR}/data/mnist.zip"
             STATUS status
             SHOW_PROGRESS
         )
@@ -135,9 +131,9 @@ if(DOWNLOAD_MNIST)
             Please, retry or download it manually (The dataset is also available at http://imagelab.ing.unimore.it/files/DeepHealth/mnist.zip).")
         else()
             message(STATUS "Downloading done.")
-            if(EXISTS "${CMAKE_BINARY_DIR}/mnist.zip")
+            if(EXISTS "${CMAKE_SOURCE_DIR}/data/mnist.zip")
                 message(STATUS "Unpacking (it may take a while)...")
-                execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf "${CMAKE_BINARY_DIR}/mnist.zip" WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" OUTPUT_QUIET)
+                execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf "${CMAKE_SOURCE_DIR}/data/mnist.zip" WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/data" OUTPUT_QUIET)
                 message(STATUS "Unpacking done.")
             endif()
         endif()

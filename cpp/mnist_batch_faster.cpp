@@ -13,9 +13,8 @@ using namespace std;
 int main(int argc, char* argv[])
 {
     // Default settings, they can be changed from command line
-    // workers and queue_ratio will not be used because in this pipeline we use the "old" LoadBatch function
-    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpus, input_channels 
-    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 1, 1, {}, 1);
+    // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio, gpus, input_channels
+    Settings s(10, { 28,28 }, "LeNet", "sce", 0.001f, "mnist_classification", "../data/mnist/mnist.yml", 5, 200, 4, 5, {}, 1);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
@@ -44,11 +43,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY);
-
-    // Prepare tensors which store batch
-    Tensor* x = new Tensor({ s.batch_size, d.n_channels_, s.size[0], s.size[1] });
-    Tensor* y = new Tensor({ s.batch_size, static_cast<int>(d.classes_.size()) });
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::none, s.workers, s.queue_ratio, { true, false });
 
     // int num_batches_training = d.GetNumBatches("training");  // or
     // int num_batches_training = d.GetNumBatches(0);           // where 0 is the split index, or
@@ -67,23 +62,35 @@ int main(int argc, char* argv[])
             // Reset errors
             reset_loss(s.net);
 
+            // Resize to batch size if we have done a previous resize
+            if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+                s.net->resize(s.batch_size);
+            }
+
             // Reset and shuffle training list
             d.ResetBatch(d.current_split_, true);
 
+            d.Start();
             // Feed batches to the model
             for (int j = 0; j < num_batches_training; ++j) {
                 tm.reset();
                 tm.start();
-                cout << "Epoch " << e << "/" << s.epochs << " (batch " << j << "/" << num_batches_training - 1 << ") - ";
+                cout << "Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_training - 1 << ") - ";
+                cout << "|fifo| " << d.GetQueueSize() << " - ";
 
                 // Load a batch
-                d.LoadBatch(x, y);
+                auto [samples, x, y] = d.GetBatch();
 
                 // Preprocessing
-                x->div_(255.0);
+                x->div_(255.);
+
+                // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+                if (j == num_batches_training - 1 && x->shape[0] != s.batch_size) {
+                    s.net->resize(x->shape[0]);
+                }
 
                 // Train batch
-                train_batch(s.net, { x }, { y });
+                train_batch(s.net, { x.get() }, { y.get() });
 
                 // Print errors
                 print_loss(s.net, j);
@@ -91,10 +98,10 @@ int main(int argc, char* argv[])
                 tm.stop();
                 cout << "- Elapsed time: " << tm.getTimeSec() << endl;
             }
+            d.Stop();
 
             tm_epoch.stop();
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
-
             cout << "Saving weights..." << endl;
             save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(e) + ".onnx")).string());
         }
@@ -102,22 +109,32 @@ int main(int argc, char* argv[])
 
     // Test
     cout << "Starting test" << endl;
+    // Resize to batch size if we have done a previous resize
+    if (d.split_[d.current_split_].last_batch_ != s.batch_size) {
+        s.net->resize(s.batch_size);
+    }
     d.SetSplit(SplitType::test);
 
+    d.Start();
     for (int i = 0; i < num_batches_test; ++i) {
         cout << "Test - (batch " << i << "/" << num_batches_test - 1 << ") - ";
+        cout << "|fifo| " << d.GetQueueSize() << " - ";
 
         // Load a batch
-        d.LoadBatch(x, y);
+        auto [samples, x, y] = d.GetBatch();
+
+        // if it's the last batch and the number of samples doesn't fit the batch size, resize the network
+        if (i == num_batches_test - 1 && x->shape[0] != s.batch_size) {
+            s.net->resize(x->shape[0]);
+        }
 
         // Preprocessing
-        x->div_(255.0);
+        x->div_(255.);
 
         // Evaluate batch
-        evaluate(s.net, { x }, { y });
+        evaluate(s.net, { x.get() }, { y.get() });
     }
+    d.Stop();
 
-    delete x;
-    delete y;
     return EXIT_SUCCESS;
 }

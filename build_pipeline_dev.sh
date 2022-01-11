@@ -7,9 +7,8 @@ BUILD_TYPE=${1:-Release}
 # BUILD_TYPE=${1:-Debug}
 DEPENDENCIES_DIR="${2:-deephealth_lin}"
 CMAKE_GENERATOR=${3:-"Unix Makefiles"}
-EDDL_VERSION="${4:-v1.0.2a}"
-ECVL_VERSION="${5:-v0.4.1}"
-OPENCV_VERSION=3.4.13
+
+OPENCV_VERSION=3.4.14
 
 PROC=$(nproc)
 IS_CI=${6:-false}
@@ -19,18 +18,17 @@ set -o pipefail
 
 #export CC=gcc-9
 #export CXX=g++-9
-#export CUDACXX=/usr/local/cuda-10.2/bin/nvcc
+#export CUDACXX=/usr/local/cuda-11.0/bin/nvcc
 
 mkdir -p $DEPENDENCIES_DIR && cd $DEPENDENCIES_DIR
 
 ############ EDDL
 if [ ! -d "eddl" ]; then
   git clone https://github.com/deephealthproject/eddl.git
-  cd eddl
-  git checkout tags/${EDDL_VERSION}
-else
-  cd eddl
-fimkdir -p build && cd build
+fi
+cd eddl
+git checkout develop && git pull
+mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_HPC=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 EDDL_INSTALL_DIR=$(pwd)/install
@@ -55,7 +53,8 @@ if [ ! -d "ecvl" ]; then
 fi
 cd ecvl
 # Latest release
-git checkout tags/${ECVL_VERSION}mkdir -p build && cd build
+git checkout development && git pull
+mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_BUILD_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 ECVL_INSTALL_DIR=$(pwd)/install

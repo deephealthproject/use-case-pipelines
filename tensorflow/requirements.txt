@@ -1,0 +1,6 @@
+tensorflow<2.4 # cuda 10.1
+numpy
+scikit-image
+PyYAML
+imgaug
+scikit-learn

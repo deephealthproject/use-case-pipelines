@@ -1,8 +1,23 @@
-/[Bb]uild*
-/[Bb]in*
+/[Bb]uild*/
+/[Bb]in*/
 /deephealth*
+checkpoints*
+images*
 output*
 /.vs*
-/.idea*
 /out*
-/cmake-build*
+/data*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# CMake
+cmake-build-*/
+
+# PyCharm
+.idea*

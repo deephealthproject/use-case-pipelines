@@ -1,4 +1,16 @@
-# PyTorch Dataloaders and DeepHealth Dataset Format
+# PyTorch Pipelines Adaptation
+
+```
+pytorch
+  └── skin_lesion_classification
+        └── ...
+  └── skin_lesion_segmentation
+        └── ...
+  └── yaml_segmentation_dataset.py
+  └── yaml_classification_dataset.py
+```
+
+## PyTorch Dataloaders and DeepHealth Dataset Format
 
 This folder contains two [PyTorch dataloaders](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) for classification and segmentation, which are compatible with [DeepHealth Toolkit Dataset Format](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format).
 
@@ -6,6 +18,7 @@ The following lines provide an usage example for classification task (using torc
 ```python
 from torchvision import transforms
 from torch.utils.data import DataLoader
+
 if __name__ == '__main__':
     dname = 'isic_classification.yml' # ECVL dataset path
     custom_training_transforms = transforms.Compose([
