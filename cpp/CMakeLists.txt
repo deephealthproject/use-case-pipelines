@@ -19,7 +19,7 @@ target_sources(SKIN_LESION_SEGMENTATION PRIVATE
 target_sources(PNEUMOTHORAX_SEGMENTATION PRIVATE
         pneumothorax_segmentation.cpp
 )
-target_sources(MS_SEGMENTATION_TRAINING PRIVATE
+target_sources(MS_SEGMENTATION PRIVATE
         ms_segmentation_training.cpp
 )
 target_sources(COPY_GROUND_TRUTH_PNEUMOTHORAX PRIVATE
