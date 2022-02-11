@@ -10,8 +10,12 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
-void Inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path, float& best_metric)
+void Inference(const string& type, DLDataset& d, Settings& s, const int num_batches, const int epoch, const path& current_path, float& best_metric)
 {
+    static int sched_patience = 10;
+    const int sched_patience_init = 10;
+    const float sched_factor = 0.1f;
+
     float ca = 0.f, mean_metric;
     vector<float> total_metric;
     View<DataType::float32> img_t;
@@ -95,9 +99,21 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
             save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
             best_metric = mean_metric;
         }
+        else {
+            // Change the learning rate after patience times
+            if (sched_patience <= 0) {
+                s.lr *= sched_factor;
+                setlr(s.net, { s.lr, s.momentum });
+
+                sched_patience = sched_patience_init;
+            }
+            else {
+                --sched_patience;
+            }
+        }
     }
 
-    of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
+    of.open(s.exp_name + "_" + type + "_stats.txt", ios::out | ios::app);
     of << "Epoch " << epoch << " - Total " << type << " categorical accuracy: " << mean_metric << endl;
     of.close();
 
@@ -117,7 +133,7 @@ int main(int argc, char* argv[])
     }
 
     layer out = getOut(s.net)[0];
-    if (typeid(*out) != typeid(LActivation)){
+    if (typeid(*out) != typeid(LActivation)) {
         out = Softmax(out);
         s.net = Model({ s.net->lin[0] }, { out });
     }
@@ -142,6 +158,7 @@ int main(int argc, char* argv[])
     setlogfile(s.net, s.exp_name);
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
+        AugCenterCrop(),
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         AugFlip(.5),
@@ -156,6 +173,7 @@ int main(int argc, char* argv[])
         );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(
+        AugCenterCrop(),
         AugResizeDim(s.size, InterpolationType::cubic),
         AugToFloat32(255),
         //AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
