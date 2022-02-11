@@ -25,3 +25,6 @@ target_sources(COPY_GROUND_TRUTH_PNEUMOTHORAX PRIVATE
 target_sources(KIDNEY_SEGMENTATION PRIVATE
         kidney_segmentation.cpp
 )
+target_sources(KIDNEY_CLASSIFICATION PRIVATE
+        kidney_classification.cpp
+)
