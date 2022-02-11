@@ -1,6 +1,7 @@
 #include "utils/utils.h"
 
 #include <iostream>
+#include <numeric>
 
 #include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
