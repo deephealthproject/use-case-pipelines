@@ -1,7 +1,6 @@
 #include "utils/utils.h"
 
 #include <iostream>
-#include <numeric>
 
 #include "ecvl/core/filesystem.h"
 #include "eddl/serialization/onnx/eddl_onnx.h"
@@ -143,7 +142,7 @@ void Inference(const string& type, KidneyDataset& d, const Settings& s, const in
 
     // Calculate the most voted label for each patient and assign it to all the slices of the patient
     for (auto& elem : patients) {
-        auto mean_patient = std::reduce(elem.second.second.begin(), elem.second.second.end()) / elem.second.second.size();
+        auto mean_patient = accumulate(elem.second.second.begin(), elem.second.second.end(), 0.0f) / elem.second.second.size();
         int patient_sum = 0;
         if (mean_patient >= 0.5) {
             fill(elem.second.second.begin(), elem.second.second.end(), 1);
