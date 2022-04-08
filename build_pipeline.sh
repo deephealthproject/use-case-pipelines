@@ -30,7 +30,8 @@ if [ ! -d "eddl" ]; then
   git checkout tags/${EDDL_VERSION}
 else
   cd eddl
-fimkdir -p build && cd build
+fi
+mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TARGET=$DEVICE -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_SUPERBUILD=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_HPC=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 EDDL_INSTALL_DIR=$(pwd)/install

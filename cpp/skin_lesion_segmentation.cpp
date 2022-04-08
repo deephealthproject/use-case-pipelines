@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::GRAY, s.workers, s.queue_ratio, { true, false, false });
+    DLDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::RGB, ColorType::GRAY, s.workers, s.queue_ratio, { {"training", true}, {"validation", false}, {"test", false} });
 
     // int num_batches_training = d.GetNumBatches("training");  // or
     // int num_batches_training = d.GetNumBatches(0);           // where 0 is the split index, or

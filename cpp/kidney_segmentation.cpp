@@ -29,7 +29,7 @@ public:
         ColorType ctype_gt = ColorType::GRAY,
         unsigned num_workers = 1,
         double queue_ratio_size = 1.,
-        vector<bool> drop_last = {},
+        const unordered_map<string, bool>& drop_last = {},
         bool verify = false) :
 
         DLDataset{ filename, batch_size, augs, ctype, ctype_gt, num_workers, queue_ratio_size, drop_last, verify }
@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    KidneyDataset d(s.in_channels, s.dataset_path, s.batch_size, dataset_augmentations, ColorType::none, ColorType::none, s.workers, s.queue_ratio, { true, false, false });
+    KidneyDataset d(s.in_channels, s.dataset_path, s.batch_size, dataset_augmentations, ColorType::none, ColorType::none, s.workers, s.queue_ratio, { {"training", false}, {"validation", false}, {"test", false} });
 
     cv::TickMeter tm, tm_epoch;
 
@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
                 tm.start();
 
                 cout << "Epoch " << e << "/" << s.epochs - 1 << " (batch " << j << "/" << num_batches_training - 1 << ") - ";
-                cout << "|fifo| " << d.GetQueueSize();
+                cout << "|fifo| " << d.GetQueueSize() << " - ";
 
                 // Load a batch
                 auto [samples, x, y] = d.GetBatch();

@@ -17,6 +17,7 @@ from loss import dice
 from torch import optim
 from tqdm import tqdm
 from PIL import Image
+import cv2
 
 def Threshold(a, thresh=0.5):
     a[a >= thresh] = 1
@@ -49,14 +50,21 @@ def main(args):
     writer = SummaryWriter(comment='_nabla_bce')
     train_transform = A.Compose(
         [
-            A.Resize(args.size, args.size),
+            A.Resize(args.size, args.size, interpolation=cv2.INTER_NEAREST),
+            A.OneOf([
+                A.Rotate(180, interpolation=cv2.INTER_NEAREST),
+                A.HorizontalFlip(0.3)], p=1),
+            A.GaussianBlur(blur_limit=(3, 5), p=0.3),
+            A.OneOf([
+                A.ElasticTransform(alpha=34, sigma=4),
+                A.OpticalDistortion(distort_limit=0.3, shift_limit=0.1)], p=0.4),
             A.Normalize(60.243489265441895, 167.91686515808107),
             ToTensorV2(),
         ]
     )
     valid_transform = A.Compose(
         [
-            A.Resize(args.size, args.size),
+            A.Resize(args.size, args.size, interpolation=cv2.INTER_NEAREST),
             A.Normalize(60.243489265441895, 167.91686515808107),
             ToTensorV2(),
         ]
@@ -75,13 +83,13 @@ def main(args):
     device = torch.device('cpu' if not args.gpu else 'cuda')
 
     # Model, loss, optimizer
-    model = Nabla(in_channels=1, out_channels=args.num_classes)
+    model = Nabla(in_channels=args.n_channels, out_channels=args.num_classes)
     if torch.cuda.device_count() > 1 and args.gpu:
         model = torch.nn.DataParallel(model, device_ids=np.where(np.array(args.gpu) == 1)[0])
     model.to(device)
 
     dsc_loss = torch.nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-8)
 
     if args.ckpts is None:
         best_validation_dsc = 0.0
@@ -89,14 +97,14 @@ def main(args):
     else:
         checkpoint = torch.load(args.ckpts)
         model.load_state_dict(checkpoint['state_dict'])
-        load_epoch = checkpoint['epoch']
+        load_epoch = checkpoint['epoch'] + 1
         optimizer.load_state_dict(checkpoint['optimizer'])
         best_validation_dsc = checkpoint['best_metric']
         print("Loaded checkpoint epoch ", load_epoch, " with best metric ", best_validation_dsc)
 
     train_eval = Evaluator()
     valid_eval = Evaluator()
-    for epoch in tqdm(range(load_epoch, args.epochs), total=args.epochs):
+    for epoch in tqdm(range(load_epoch, args.epochs), total=args.epochs - load_epoch):
         print()
         loss_train = []
         loss_valid = []
@@ -138,10 +146,10 @@ def main(args):
                         for j, (p, g) in enumerate(zip(pred_list, gt_list)):
                             train_eval.DiceCoefficient(p, g)
 
-                    elif phase == "valid":
+                    else:
                         loss_valid.append(loss.item())
                         for j, (p, g) in enumerate(zip(pred_list, gt_list)):
-                            valid_eval.DiceCoefficient(p, g)
+                            valid_eval.DiceCoefficient(p, g, 0.5)
                             if args.out_dir is not None:
                                 p *= 255
                                 g *= 255
@@ -174,8 +182,8 @@ def main(args):
         print('Mean loss_train epoch ', epoch, ': ', loss_train)
         print('Mean loss_valid epoch ', epoch, ': ', loss_valid)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('in_ds', metavar='INPUT_DATASET')
     parser.add_argument('--epochs', type=int, metavar='INT', default=100)

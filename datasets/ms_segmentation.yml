@@ -1,36 +1,52 @@
 name: MS SEG challenge
 description: Multiple sclerosis segmentation 2016 challenge segmentation dataset
+features: [number_of_slices]
 images:
   - location: Pre-processed training dataset/01016SACH/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/01016SACH/Consensus.nii
+    values: [512, float32]
   - location: Pre-processed training dataset/01038PAGU/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/01038PAGU/Consensus.nii
+    values: [512, float32]
   - location: Pre-processed training dataset/01042GULE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/01042GULE/Consensus.nii
+    values: [512, float32]
   - location: Pre-processed training dataset/07001MOEL/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/07001MOEL/Consensus.nii
+    values: [256, float32]
   - location: Pre-processed training dataset/07040DORE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/07040DORE/Consensus.nii
+    values: [256, uint16]
   - location: Pre-processed training dataset/07043SEME/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/07043SEME/Consensus.nii
+    values: [256, uint16]
   - location: Pre-processed training dataset/08002CHJE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/08002CHJE/Consensus.nii
+    values: [336, float32]
   - location: Pre-processed training dataset/08029IVDI/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/08029IVDI/Consensus.nii
+    values: [336, float32]
   - location: Pre-processed training dataset/08031SEVE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/08031SEVE/Consensus.nii
+    values: [336, float32]
   - location: Pre-processed training dataset/08037ROGU/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/08037ROGU/Consensus.nii
+    values: [336, float32]
   - location: Pre-processed training dataset/01040VANE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/01040VANE/Consensus.nii
+    values: [512, float32]
   - location: Pre-processed training dataset/07003SATH/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/07003SATH/Consensus.nii
+    values: [256, float32]
   - location: Pre-processed training dataset/01039VITE/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/01039VITE/Consensus.nii
+    values: [512, float32]
   - location: Pre-processed training dataset/07010NABO/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/07010NABO/Consensus.nii
+    values: [256, float32]
   - location: Pre-processed training dataset/08027SYBR/FLAIR_preprocessed.nii
     label: Unprocessed training dataset/TrainingDataset_MSSEG/08027SYBR/Consensus.nii
+    values: [336, float32]
 split:
   training:
     - 0
