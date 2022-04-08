@@ -55,6 +55,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         ("q,queue_ratio", "Queue ratio size (queue size will be: batch_size*workers*queue_ratio)", cxxopts::value<double>()->default_value(to_string(s.queue_ratio)))
         ("resume", "Resume training from this epoch", cxxopts::value<int>()->default_value(to_string(s.resume)))
         ("t,skip_train", "Skip training and perform only test", cxxopts::value<bool>()->default_value(to_string(s.skip_train)))
+        ("ensemble", "Perform ensemble", cxxopts::value<bool>()->default_value(to_string(s.ensemble)))
         ("h,help", "Print usage");
 
     ecvl::optional<cxxopts::ParseResult> args_o;
@@ -85,6 +86,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     s.random_weights = true;
     s.resume = args["resume"].as<int>();
     s.skip_train = args["skip_train"].as<bool>();
+    s.ensemble = args["ensemble"].as<bool>();
     s.workers = args["workers"].as<int>();
     s.queue_ratio = args["queue_ratio"].as<double>();
     s.in_channels = args["input_channels"].as<int>();
@@ -118,7 +120,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     }
     if (!s.checkpoint_path.empty()) {
         s.random_weights = false;
-        s.net = import_net_from_onnx_file(s.checkpoint_path, in_shape, DEV_CPU);
+        s.net = import_net_from_onnx_file(s.checkpoint_path, in_shape);
         cout << "pretrained network: " << s.checkpoint_path << "\n";
     }
     else { // Define the network
@@ -147,8 +149,9 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
             out = VGG16_inception_2(in, s.num_classes);
         }
         else if (!s.model.compare("DeepLabV3Plus")) {
-            out = DeepLabV3Plus(s.num_classes).forward(in);
-            s.random_weights = false; // Use pretrained model
+            bool pretrained = true;
+            out = DeepLabV3Plus(s.num_classes, pretrained).forward(in);
+            s.random_weights = pretrained ? false : true;
         }
         else if (!s.model.compare("resnet50")) {
             out = ResNet50(in, s.num_classes);
@@ -187,7 +190,7 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
         }
         else if (!s.model.compare("onnx::resnet101")) {
             if (!filesystem::exists("resnet101-v1-7.onnx")) {
-                Download("https://github.com/onnx/models/raw/master/vision/classification/resnet/model/resnet101-v1-7.onnx");
+                Download("https://github.com/onnx/models/raw/main/vision/classification/resnet/model/resnet101-v1-7.onnx");
             }
             s.net = import_net_from_onnx_file("resnet101-v1-7.onnx", in_shape, DEV_CPU);
             removeLayer(s.net, "resnetv18_dense0_fwd"); // remove last Linear
@@ -248,8 +251,8 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
     cout << "lsb: " << s.lsb << "\n";
     cout << "mem: " << s.mem << "\n";
 
+    s.result_dir = args["result_dir"].as<path>();
     if (s.save_images) {
-        s.result_dir = args["result_dir"].as<path>();
         create_directory(s.result_dir);
         cout << "save_images: true\n";
         cout << "result output folder: " << s.result_dir << "\n";
@@ -264,6 +267,9 @@ bool TrainingOptions(int argc, char* argv[], Settings& s)
 
     if (s.skip_train) {
         cout << "Skipping train..." << endl;
+    }
+    if (s.ensemble) {
+        cout << "Performing an ensemble..." << endl;
     }
 
     return true;

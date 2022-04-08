@@ -31,7 +31,7 @@ class DeepLabV3Plus
     int num_classes_;
     bool pretrained_ = true;
     const int block_expansion_ = 4;
-    int inplanes_ = 64;
+    int inplanes_ = 64, output_layers_ = 256;
     float bn_momentum = 0.9f, bn_eps = 1e-5f;
 
     eddl::layer bottleneck(eddl::layer x, int planes, int stride = 1, bool downsample = false, int dilation = 1, bool conv = false, bool norm = false)
@@ -110,46 +110,53 @@ class DeepLabV3Plus
         return ResNet(x, { 3,4,23,3 }, output_stride);
     }
 
-    eddl::layer ASPPModule(eddl::layer x, int planes, int kernel_size, int padding, int dilation)
+    eddl::layer ASPPModule(eddl::layer x, int dilation)
     {
-        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, planes, { kernel_size,kernel_size }, { 1,1 }, "same", false, 1, { dilation,dilation }), true, bn_momentum, bn_eps));
+        //x = eddl::DepthwiseConv2D(x, { 3, 3 }, { 1,1 }, "same", false, { dilation,dilation });
+        int filters = x->output->shape[1];  // one filter per channel (...with depth D)
+        x = eddl::Conv2D(x, filters, { 3,3 }, { 1,1 }, "same", false, filters, { dilation, dilation }); // DepthwiseConv2D but with padding
+        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, output_layers_, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         return x;
     }
-    eddl::layer ASPP(eddl::layer x, int output_stride)
+    eddl::layer ASPP(eddl::layer x, int output_stride, int& scale_factor)
     {
         std::vector<int> dilations;
         if (output_stride == 16) {
             dilations = { 1, 6, 12, 18 };
+            scale_factor = 4;
         }
         else if (output_stride == 8) {
             dilations = { 1, 12, 24, 36 };
+            scale_factor = 2;
         }
         else {
-            throw "Not implemented output_stride";
+            throw std::runtime_error(ECVL_ERROR_MSG "Not implemented output_stride");
         }
 
-        eddl::layer x1 = ASPPModule(x, 256, 1, true, dilations[0]);
-        eddl::layer x2 = ASPPModule(x, 256, 3, true, dilations[1]);
-        eddl::layer x3 = ASPPModule(x, 256, 3, true, dilations[2]);
-        eddl::layer x4 = ASPPModule(x, 256, 3, true, dilations[3]);
+        eddl::layer x1 = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, output_layers_, { 1,1 }, { 1,1 }, "same", false, 1, { 1,1 }), true, bn_momentum, bn_eps));
+        eddl::layer x2 = ASPPModule(x, dilations[1]);
+        eddl::layer x3 = ASPPModule(x, dilations[2]);
+        eddl::layer x4 = ASPPModule(x, dilations[3]);
         eddl::layer x5 = eddl::GlobalAveragePool2D(x);
-        x5 = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x5, 256, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
-        x5 = eddl::UpSampling2D(x5, { x4->getShape()[2], x4->getShape()[3] }, "bilinear");
+        x5 = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x5, output_layers_, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
+        x5 = eddl::UpSampling2D(x5, { x4->getShape()[2], x4->getShape()[3] });
         x = eddl::Concat({ x1,x2,x3,x4,x5 });
-        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
+        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, output_layers_, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         x = eddl::Dropout(x, 0.5f);
+        x = ASPPModule(x, dilations[0]);
+
         return x;
     }
 
     eddl::layer Decoder(eddl::layer x, eddl::layer low_level_feat)
     {
         low_level_feat = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(low_level_feat, 48, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
-        //x = eddl::Scale(x, { low_level_feat->getShape()[2],low_level_feat->getShape()[3] });
-        x = eddl::UpSampling2D(x, { 4,4 }, "bilinear");
         x = eddl::Concat({ x, low_level_feat });
 
-        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps)), 0.5f);
-        x = eddl::Dropout(eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, 256, { 3,3 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps)), 0.1f);
+        int filters = x->output->shape[1];  // one filter per channel (...with depth D)
+        x = eddl::Conv2D(x, filters, { 3,3 }, { 1,1 }, "same", false, filters, { 1, 1 }); // DepthwiseConv2D but with padding
+        //x = eddl::DepthwiseConv2D(x, { 3, 3 }, { 1,1 }, "same", false, { 1,1 });
+        x = eddl::ReLu(eddl::BatchNormalization(eddl::Conv2D(x, output_layers_, { 1,1 }, { 1,1 }, "same", false), true, bn_momentum, bn_eps));
         x = eddl::Conv2D(x, num_classes_, { 1,1 }, { 1,1 }, "same", false);
         return x;
     }
@@ -158,11 +165,12 @@ public:
 
     DeepLabV3Plus(int num_classes = 1, bool pretrained = true) : num_classes_{ num_classes }, pretrained_{ pretrained } {}
 
-    eddl::layer forward(eddl::layer input, int output_stride = 16)
+    eddl::layer forward(eddl::layer& input, int output_stride = 16)
     {
         eddl::layer x, low_level_feat;
+        int scale_factor = 4; // if output_stride is 8 it will be modified to 2 in the ASPP module
         if (pretrained_) {
-            auto resnet101 = import_net_from_onnx_file("resnet101_simpl.onnx", { input->getShape()[1], input->getShape()[2], input->getShape()[3] }, 2);
+            auto resnet101 = import_net_from_onnx_file("resnet101.onnx", { input->getShape()[1], input->getShape()[2], input->getShape()[3] });
             input = eddl::getLayer(resnet101, "input"); // set input layer
             x = eddl::getLayer(resnet101, "Relu_341");
             low_level_feat = eddl::getLayer(resnet101, "Relu_35");
@@ -172,10 +180,13 @@ public:
             x = backbone[0];
             low_level_feat = backbone[1];
         }
-        x = ASPP(x, output_stride);
+
+        x = ASPP(x, output_stride, scale_factor);
+        x = eddl::UpSampling2D(x, { scale_factor,scale_factor });
         x = Decoder(x, low_level_feat);
-        x = eddl::UpSampling2D(x, { 4,4 }, "bilinear");
+        x = eddl::UpSampling2D(x, { 4,4 });
         x = eddl::Sigmoid(x);
+
         return x;
     }
 };

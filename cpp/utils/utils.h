@@ -19,7 +19,7 @@ struct Settings
     int lsb;
     std::string mem;
     bool random_weights;
-    bool skip_train;
+    bool skip_train, ensemble;
     eddl::compserv cs;
     Net* net = nullptr;
     ecvl::filesystem::path result_dir, checkpoint_dir, dataset_path;
@@ -45,6 +45,7 @@ struct Settings
         const std::string& checkpoint_path_ = "",
         const int& resume_ = 0,
         const bool& skip_train_ = false,
+        const bool& ensemble_ = false,
         const int& lsb_ = 1,
         const bool& save_images_ = false,
         const std::string& mem_ = "low_mem",
@@ -55,7 +56,7 @@ struct Settings
     num_classes(num_classes_), size(size_), model(model_), loss(loss_), lr(lr_), exp_name(exp_name_), dataset_path(dataset_path_),
         epochs(epochs_), batch_size(batch_size_), workers(workers_), queue_ratio(queue_ratio_), lsb(lsb_), gpu(gpus_),
         in_channels(in_channels_), save_images(save_images_), mem(mem_), momentum(momentum_), result_dir(result_dir_),
-        checkpoint_dir(checkpoint_dir_), checkpoint_path(checkpoint_path_), skip_train(skip_train_), resume(resume_)
+        checkpoint_dir(checkpoint_dir_), checkpoint_path(checkpoint_path_), skip_train(skip_train_), ensemble(ensemble_), resume(resume_)
     {}
 };
 
