@@ -122,11 +122,10 @@ int main(int argc, char* argv[])
 
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(1, { 224,224 }, "onnx::unet_resnet101", "binary_cross_entropy", 0.001f, "skin_lesion_segmentation", "", 100, 2, 6, 6);
+    Settings s(1, { 512,512 }, "DeepLabV3Plus", "binary_cross_entropy", 7e-5f, "skin_lesion_segmentation", "", 200, 4, 6, 10);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }
-    constexpr float lr_step = 0.1f; // step for the learning rate scheduler
 
     layer out = getOut(s.net)[0];
     if (typeid(*out) != typeid(LActivation)) {
@@ -143,31 +142,36 @@ int main(int argc, char* argv[])
         s.random_weights // Randomly initialize network weights
     );
 
+    // 343 is the first layer of deeplab without resnet
+    if (s.model == "DeepLabV3Plus" && s.checkpoint_path.empty()) {
+        for (int i = 343; i != s.net->layers.size(); i++)
+            initializeLayer(s.net, s.net->layers[i]->name);
+    }
+
     // View model
     summary(s.net);
     plot(s.net, s.exp_name + ".pdf");
     setlogfile(s.net, s.exp_name);
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
-        AugCenterCrop(),
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         AugFlip(.5),
-        AugRotate({ -180, 180 }),
+        AugRotate({ -180, 180 }, {}, 1.0, InterpolationType::cubic),
         AugAdditivePoissonNoise({ 0, 10 }),
         AugGammaContrast({ .5, 1.5 }),
         AugGaussianBlur({ .0, .8 }),
         AugCoarseDropout({ 0, 0.03 }, { 0.02, 0.05 }, 0.25),
         AugToFloat32(255, 255),
-        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-//        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        AugNormalize({ 0.67501814, 0.5663187, 0.52339128 }, { 0.11092593, 0.10669603, 0.119005 }) // isic stats
+        // AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     auto validation_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
         AugToFloat32(255, 255),
-        AugNormalize({ 0.6681, 0.5301, 0.5247 }, { 0.1337, 0.1480, 0.1595 }) // isic stats
-//        AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+        AugNormalize({ 0.67501814, 0.5663187, 0.52339128 }, { 0.11092593, 0.10669603, 0.119005 }) // isic stats
+        // AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
         );
 
     // Replace the random seed with a fixed one to have reproducible experiments
@@ -185,7 +189,8 @@ int main(int argc, char* argv[])
     int num_batches_validation = d.GetNumBatches(SplitType::validation);
     int num_batches_test = d.GetNumBatches(SplitType::test);
 
-    float best_metric = 0.f;
+    float best_metric = 0.f, poly_power = 0.9f;
+    int iteration = 0, max_iter = num_batches_training * s.epochs;
     cv::TickMeter tm, tm_epoch;
 
     if (s.save_images) {
@@ -194,7 +199,6 @@ int main(int argc, char* argv[])
 
     if (!s.skip_train) {
         cout << "Starting training" << endl;
-        unsigned long long it = 0; // iteration counter for the learning rate scheduler
         for (int e = s.resume; e < s.epochs; ++e) {
             tm_epoch.reset();
             tm_epoch.start();
@@ -203,6 +207,9 @@ int main(int argc, char* argv[])
             if (s.save_images) {
                 create_directory(current_path);
             }
+
+            auto new_lr = s.lr * pow((1 - float(iteration) / max_iter), poly_power);
+            setlr(s.net, { new_lr });
 
             // Reset errors for train_batch
             reset_loss(s.net);
@@ -258,17 +265,9 @@ int main(int argc, char* argv[])
 
                 tm.stop();
                 cout << "- Elapsed time: " << tm.getTimeSec() << endl;
-                ++it;
+                ++iteration;
             }
             d.Stop();
-
-            // Change the learning rate after 10'000 iterations
-            if (it > 1e4) {
-                s.lr *= lr_step;
-                setlr(s.net, { s.lr });
-
-                it = 0;
-            }
 
             set_mode(s.net, TSMODE);
             Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
