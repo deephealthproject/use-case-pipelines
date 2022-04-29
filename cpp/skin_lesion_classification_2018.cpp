@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
 
     // Default settings, they can be changed from command line
     // num_classes, size, model, loss, lr, exp_name, dataset_path, epochs, batch_size, workers, queue_ratio
-    Settings s(7, { 224,224 }, "onnx::resnet152", "sce", 7e-05, "skin_lesion_classification_2018", "", 200, 16, 4, 5);
+    Settings s(7, { 224,224 }, "onnx::resnet152", "sce", 7e-05f, "skin_lesion_classification_2018", "", 200, 16, 4, 5);
     if (!TrainingOptions(argc, argv, s)) {
         return EXIT_FAILURE;
     }

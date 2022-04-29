@@ -2,6 +2,10 @@
 
 Pipeline that uses EDDL and ECVL to train a CNN on five different datasets (_MNIST_, _ISIC_, _PNEUMOTHORAX_, _MSSEG_ and _DHUC11_), applying different image augmentations, for both the classification and the segmentation task.
 
+| ECVL  | EDDL   |  
+|-------|--------|
+| 1.0.0 | 1.0.4b | 
+
 ## Requirements
 - CMake 3.13 or later
 - C++ Compiler with C++17 support (e.g. GCC 7 or later, Clang 5.0 or later, Visual Studio 2017 or later)
@@ -10,7 +14,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on five different datasets (_MNI
 - (Optional) MSSEG dataset.
 
 ### Datasets
-The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](datasets/isic_classification.yml), [ISIC segmentation](datasets/isic_segmentation.yml), [Pneumothorax segmentation](datasets/pneumothorax.yml), [Kidney segmentation](datasets/kidney_segmentation.yml), [Multiple Sclerosis Segmentation](datasets/msseg.yml).
+The YAML datasets format is described [here](https://github.com/deephealthproject/ecvl/wiki/DeepHealth-Toolkit-Dataset-Format). Each dataset listed below contains both the data and the YAML description format, but they can also be downloaded separately: [ISIC classification](datasets/isic_classification.yml), [ISIC segmentation](datasets/isic_segmentation.yml), [Pneumothorax segmentation](datasets/pneumothorax.yml), [Kidney segmentation](datasets/kidney_segmentation.yml), [Kidney classification](datasets/kidney_classification.yml), [Multiple Sclerosis Segmentation](datasets/msseg.yml).
 
 
 #### MNIST
@@ -36,7 +40,7 @@ From the 2669 distinct training images with mask, 200 are randomly sampled as va
 - Training set: 3086 total images - 80% with mask and 20% without mask.
 - Validation set: 250 total images - 80% with mask and 20% without mask.
 
-#### KIDNEY SEGMENTATION
+#### KIDNEY SEGMENTATION AND CLASSIFICATION
 UC11 dataset, images cannot be provided publicly.
 
 ### MULTIPLE SCLEROSIS LESION SEGMENTATION
@@ -121,7 +125,7 @@ sudo ln -s /usr/lib/<arch>-linux-gnu/libcublas.so /usr/local/cuda-10.1/lib64/lib
     
 ## Training and inference
 
-The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION, KIDNEY_SEGMENTATION, MS_SEGMENTATION.
+The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN_LESION_CLASSIFICATION, SKIN_LESION_SEGMENTATION, PNEUMOTHORAX_SEGMENTATION, KIDNEY_SEGMENTATION, KIDNEY_CLASSIFICATION, MS_SEGMENTATION.
 
 - Training:
     1. MNIST_BATCH load the dataset with the deprecated ECVL LoadBatch which is not parallelized. All the other executables run with a custom number of parallel threads. Default settings [here](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/mnist_batch.cpp#L18).
@@ -129,7 +133,9 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
     1. SKIN_LESION_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/skin_lesion_segmentation.cpp#L122)) trains the neural network loading the dataset (images and their ground truth masks) in batches for the segmentation task.
     1. PNEUMOTHORAX_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/91a7b58904811fc475cdf61b4ade04c33fc085ae/cpp/pneumothorax_segmentation.cpp#L219)) trains the neural network loading the dataset (images and their ground truth masks) in batches with a custom function for this specific segmentation task.
     1. KIDNEY_SEGMENTATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/bd70e0ce905f368de846098388e7da9ab4126e98/cpp/kidney_segmentation.cpp#L191)) trains the neural network loading the dataset (volumes and their ground truth masks), dividing them in slices with a custom function for this specific segmentation task.
-    - MS_SEGMENTATION trains the neural network loading the dataset (volumes and their ground truth masks) in batches with a custom function for this specific segmentation task. Each volume is loaded in memory and then some slices (specified by `in_channels` variable) are extracted and used as input for the neural network.
+    1. KIDNEY_CLASSIFICATION ([default settings](https://github.com/deephealthproject/use-case-pipelines/blob/8632351989c0279b1f4339a2b4d1d2fa343a422b/cpp/kidney_classification.cpp#L205)) trains the neural network loading the dataset (DICOM images and their labels), and calculate the metrics aggregating the predictions for each patient.
+    1. MS_SEGMENTATION trains the neural network loading the dataset (volumes and their ground truth masks) in batches with a custom function for this specific segmentation task. Each volume is loaded in memory and then some slices (specified by `in_channels` variable) are extracted and used as input for the neural network.
+
 - Inference:
     1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints.
 
@@ -166,6 +172,7 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
 | ISIC classification 2018 |   ResNet152    |  Accuracy  |  0.887  |  0.896 | [download](https://drive.google.com/file/d/1Cht7fDqfuUgQPvwVIWs93R9uWk3S5Ip9/view?usp=sharing)
 | ISIC segmentation   |  U-Net  |    MIoU    |  0.754  |  0.729  | [download](https://drive.google.com/uc?id=16Xu_w1LJa1m2f7SIDxInmS5lv6PN_s7G&export=download)
 | Kidney segmentation   |  U-Net  |    Dice    |  0.8786  |  0.8634  | [download](https://drive.google.com/uc?id=1HcTF2fJtZmwh0rovKA4Ol-q7s8zE8u9U&export=download)
+| Kidney classification   |  ResNet101  |    Accuracy    |  0.5545  |  0.6489  | [download](https://drive.google.com/uc?id=1Ju8swjuxb_mtV0-CBObf0EVUE5ZP8Wj5&export=download)
 | MS segmentation     | Nabla   |  Dice   | 0.83  | 0.81  | [download](https://drive.google.com/uc?id=1lUXjWrGd1Gl2dRLXTOoIULvBH1Ik-qg-&export=download)
 
 - Examples of output for the pre-trained models provided:

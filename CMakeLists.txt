@@ -70,6 +70,7 @@ set(PROJECTS
     PNEUMOTHORAX_SEGMENTATION
     COPY_GROUND_TRUTH_PNEUMOTHORAX
     KIDNEY_SEGMENTATION
+    KIDNEY_CLASSIFICATION
     MS_SEGMENTATION
     )
 
@@ -100,7 +101,7 @@ if(ecvl_FOUND)
     target_link_libraries(MODELS METRICS)
     target_link_libraries(UTILS MODELS)
 
-foreach(P ${PROJECTS})
+    foreach(P ${PROJECTS})
         target_link_libraries(${P} UTILS)
     endforeach()
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")

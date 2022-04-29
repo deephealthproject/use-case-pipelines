@@ -1,4 +1,4 @@
-tensorflow<2.4 # cuda 10.1
+tensorflow
 numpy
 scikit-image
 PyYAML
