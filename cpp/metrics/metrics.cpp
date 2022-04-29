@@ -7,15 +7,15 @@ void Eval::ResetEval()
     metric_list_.clear();
 }
 
-float Eval::MeanMetric()
+double Eval::MeanMetric()
 {
-    return std::accumulate(metric_list_.begin(), metric_list_.end(), 0.0f) / metric_list_.size();
+    return std::accumulate(metric_list_.begin(), metric_list_.end(), 0.0) / metric_list_.size();
 }
 
-float Eval::BinaryIoU(Image& img, Image& gt, float thresh)
+double Eval::BinaryIoU(Image& img, Image& gt, float thresh)
 {
-    float intersection = 0;
-    float unions = 0;
+    double intersection = 0;
+    double unions = 0;
 
     auto i_img = img.ContiguousBegin<float>(), e_img = img.ContiguousEnd<float>();
     auto i_gt = gt.ContiguousBegin<float>();
@@ -28,16 +28,16 @@ float Eval::BinaryIoU(Image& img, Image& gt, float thresh)
         unions += ((*i_gt == 1) || (*i_img == 1));
     }
 
-    float iou = (intersection + eps_) / (unions + eps_);
+    double iou = (intersection + eps_) / (unions + eps_);
     metric_list_.push_back(iou);
 
     return iou;
 }
 
-float Eval::DiceCoefficient(Image& img, Image& gt, float thresh)
+double Eval::DiceCoefficient(Image& img, Image& gt, float thresh)
 {
-    float intersection = 0;
-    float unions = 0;
+    double intersection = 0;
+    double unions = 0;
 
     auto i_img = img.Begin<float>(), e_img = img.End<float>();
     auto i_gt = gt.Begin<float>();
@@ -50,7 +50,7 @@ float Eval::DiceCoefficient(Image& img, Image& gt, float thresh)
         unions += ((*i_img == 1) + (*i_gt == 1));
     }
 
-    float dice = (2 * intersection + eps_) / (unions + eps_);
+    double dice = (2 * intersection + eps_) / (unions + eps_);
     metric_list_.push_back(dice);
 
     return dice;

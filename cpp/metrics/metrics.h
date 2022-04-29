@@ -6,12 +6,12 @@
 class Eval
 {
 public:
-    std::vector<float> metric_list_;
+    std::vector<double> metric_list_;
     const float eps_ = 1e-06f;
     void ResetEval();
-    float MeanMetric();
-    float BinaryIoU(ecvl::Image& img, ecvl::Image& gt, float thresh = 0.5);
-    float DiceCoefficient(ecvl::Image& img, ecvl::Image& gt, float thresh = 0.5);
+    double MeanMetric();
+    double BinaryIoU(ecvl::Image& img, ecvl::Image& gt, float thresh = 0.5);
+    double DiceCoefficient(ecvl::Image& img, ecvl::Image& gt, float thresh = 0.5);
 
     Eval() {}
 };
