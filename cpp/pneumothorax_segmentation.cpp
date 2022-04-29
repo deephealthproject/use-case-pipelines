@@ -19,7 +19,7 @@ class PneumoDataset : public DLDataset
     int num_samples_training_, num_samples_validation_;
 
 public:
-    float best_metric_ = 0;
+    double best_metric_ = 0;
     PneumoDataset(const filesystem::path& filename,
         const int batch_size,
         DatasetAugmentations augs,
@@ -27,7 +27,7 @@ public:
         ColorType ctype_gt = ColorType::GRAY,
         unsigned num_workers = 1,
         double queue_ratio_size = 1.,
-        vector<bool> drop_last = {},
+        const unordered_map<string, bool>& drop_last = {},
         bool verify = false) :
 
         DLDataset{ filename, batch_size, augs, ctype, ctype_gt, num_workers, queue_ratio_size, drop_last, verify }
@@ -84,7 +84,7 @@ public:
 
 void Inference(const string& type, PneumoDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path)
 {
-    float mean_metric = 0;
+    double mean_metric = 0;
     View<DataType::float32> pred_t, target_t;
     Image orig_img, orig_gt;
     Eval evaluator;
@@ -262,7 +262,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    PneumoDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::GRAY, s.workers, s.queue_ratio, { true, false, false });
+    PneumoDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::GRAY, s.workers, s.queue_ratio, { {"training", true}, {"validation", false}, {"test", false} });
     d.InitDatasetWithBlackMasks();
 
     int num_batches_training = d.GetNumBatches(SplitType::training);

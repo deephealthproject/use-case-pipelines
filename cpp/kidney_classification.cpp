@@ -20,7 +20,7 @@ public:
         ColorType ctype_gt = ColorType::none,
         unsigned num_workers = 1,
         double queue_ratio_size = 1.,
-        vector<bool> drop_last = {},
+        const unordered_map<string, bool>& drop_last = {},
         bool verify = false) :
 
         DLDataset{ filename, batch_size, augs, ctype, ctype_gt, num_workers, queue_ratio_size, drop_last, verify }
@@ -253,7 +253,7 @@ int main(int argc, char* argv[])
 
     // Read the dataset
     cout << "Reading dataset" << endl;
-    KidneyDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::none, s.workers, s.queue_ratio, { true, false, false });
+    KidneyDataset d(s.dataset_path, s.batch_size, dataset_augmentations, ColorType::GRAY, ColorType::none, s.workers, s.queue_ratio, { {"training", false}, {"validation", false}, {"test", false} });
 
     // int num_batches_training = d.GetNumBatches("training");  // or
     // int num_batches_training = d.GetNumBatches(0);           // where 0 is the split index, or
