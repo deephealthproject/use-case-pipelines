@@ -4,7 +4,7 @@ Pipeline that uses EDDL and ECVL to train a CNN on five different datasets (_MNI
 
 | ECVL  | EDDL   |  
 |-------|--------|
-| 1.0.0 | 1.0.4b | 
+| 1.0.3 | 1.0.4b | 
 
 ## Requirements
 - CMake 3.13 or later
@@ -137,7 +137,7 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
     1. MS_SEGMENTATION trains the neural network loading the dataset (volumes and their ground truth masks) in batches with a custom function for this specific segmentation task. Each volume is loaded in memory and then some slices (specified by `in_channels` variable) are extracted and used as input for the neural network.
 
 - Inference:
-    1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints.
+    1. To perform only inference the `--skip_train` option has to be provided, and you will most likely want to provide a checkpoint with weights from a previous training process as well with the `--checkpoint` option. See [Pretrained models](#pretrained-models) section for checkpoints. For SKIN_LESION_SEGMENTATION you can perform the ensemble providing the `--checkpoint_dir` as the folder with all your checkpoints and the `--ensemble` option.
 
 ### C++ Training options
     -e, --epochs            Number of training epochs
@@ -162,6 +162,7 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
     -q, --queue_ratio       Maximum queue size in which producers store samples will be: batch_size\*workers\*queue_ratio
     --resume                Resume training from this epoch
     -t, --skip_train        Skip training and perform only test (default: false)
+    --ensemble              Perform ensemble (only available for skin_lesion_segmentation)
     -h, --help              Print usage
 
 ### Pretrained models
@@ -170,11 +171,20 @@ The project creates different executables: MNIST_BATCH, MNIST_BATCH_FASTER, SKIN
 ----------------------|------------|------------|--------------|----------|---------------------------------------
 | ISIC classification |   ResNet50    |  Accuracy  |  0.854  |  0.8394 | [download](https://drive.google.com/file/d/1KO2SBIrV3jx97-dh6qDw3eACqFdPz6TI/view?usp=sharing)
 | ISIC classification 2018 |   ResNet152    |  Accuracy  |  0.887  |  0.896 | [download](https://drive.google.com/file/d/1Cht7fDqfuUgQPvwVIWs93R9uWk3S5Ip9/view?usp=sharing)
-| ISIC segmentation   |  U-Net  |    MIoU    |  0.754  |  0.729  | [download](https://drive.google.com/uc?id=16Xu_w1LJa1m2f7SIDxInmS5lv6PN_s7G&export=download)
-| Kidney segmentation   |  U-Net  |    Dice    |  0.8786  |  0.8634  | [download](https://drive.google.com/uc?id=1HcTF2fJtZmwh0rovKA4Ol-q7s8zE8u9U&export=download)
+| Kidney segmentation   |  UNet  |    Dice    |  0.8786  |  0.8634  | [download](https://drive.google.com/uc?id=1HcTF2fJtZmwh0rovKA4Ol-q7s8zE8u9U&export=download)
 | Kidney classification   |  ResNet101  |    Accuracy    |  0.5545  |  0.6489  | [download](https://drive.google.com/uc?id=1Ju8swjuxb_mtV0-CBObf0EVUE5ZP8Wj5&export=download)
 | MS segmentation     | Nabla   |  Dice   | 0.83  | 0.81  | [download](https://drive.google.com/uc?id=1lUXjWrGd1Gl2dRLXTOoIULvBH1Ik-qg-&export=download)
 
+|                     |   Model    |   Metric   |  Validation  |  Test    |  ONNX  
+----------------------|------------|------------|--------------|----------|---------------------------------------
+| ISIC segmentation   |  DeepLabV3Plus  |    MIoU    |  0.746  |  0.746  | [download](https://drive.google.com/file/d/1rrChvu6BUaNnyWoMu4Qy0HMHt9cYut6X/view?usp=sharing)
+| ISIC segmentation   |  SegNet (BCE) |    MIoU    |  0.750  |  0.770  | [download](https://drive.google.com/file/d/1wx9sAbJFIl4LXqjjGe6HPF9CQld3Zhvm/view?usp=sharing)
+| ISIC segmentation   |  SegNet (Dice) |    MIoU    |  0.756  |  0.768  | [download](https://drive.google.com/file/d/1g3QtUlaG7x-unzak6N9iCdIkL9zXwfHt/view?usp=sharing)
+| ISIC segmentation   |  UNet++  |    MIoU    |  0.782  |  0.771  | [download](https://drive.google.com/file/d/1AcQRpFQQN9T5TRPKFZMkb2-1tqnX1EBB/view?usp=sharing)
+| ISIC segmentation   |  UNet  |    MIoU    |  0.770  |  0.763  | [download](https://drive.google.com/file/d/16eNEdJ471IWIR0iSHaqEiyrScmFvkHl2/view?usp=sharing)
+| ISIC segmentation   |  LinkNet (VGG) |    MIoU    |  0.770  |  0.752  | [download](https://drive.google.com/file/d/14kd4uuIIYSKqK_Qq1foyUVxtoNbSiL6Y/view?usp=sharing)
+| ISIC segmentation   |  LinkNet (ResNet101) |    MIoU    |  0.762  |  0.763  | [download](https://drive.google.com/file/d/19-FKeGSSheoW7V4-3Q5OLptY8rWrTFnW/view?usp=sharing)
+| Ensemble ISIC segmentation   |   |    MIoU    |  0.794  |  0.800  | 
 - Examples of output for the pre-trained models provided:
     1. *ISIC segmentation test set*:
 
