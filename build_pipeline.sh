@@ -56,7 +56,8 @@ if [ ! -d "ecvl" ]; then
 fi
 cd ecvl
 # Latest release
-git checkout tags/${ECVL_VERSION}mkdir -p build && cd build
+git checkout tags/${ECVL_VERSION}
+mkdir -p build && cd build
 cmake -G"${CMAKE_GENERATOR}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DECVL_GPU=OFF -DOpenCV_DIR=$OPENCV_BUILD_DIR -Deddl_DIR=$EDDL_INSTALL_DIR/lib/cmake/eddl -DECVL_BUILD_EDDL=ON -DECVL_DATASET=ON -DECVL_BUILD_GUI=OFF -DECVL_WITH_DICOM=ON -DECVL_TESTS=OFF -DCMAKE_INSTALL_PREFIX=install ..
 make -j$PROC && make install
 ECVL_INSTALL_DIR=$(pwd)/install
