@@ -11,15 +11,116 @@ using namespace ecvl::filesystem;
 using namespace eddl;
 using namespace std;
 
-void Inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path, float& best_metric)
+void Ensemble(const Settings& s, const string& type, vector<map<path, Image>>& predictions, const path& gt_path, const int& max_size, const vector<path>& name_vector)
 {
-    float mean_metric;
+    int n_models = vsize(predictions);
+    vector<Image> images(n_models);
+    vector<ContiguousIterator<float>> iterators(n_models);
+    vector<double> metric_list, metric_list_postprocessing;
+    Image dst, gt, labels;
+
+    path current_path = "Ensemble " + type;
+    if (s.save_images) {
+        create_directory(s.result_dir / current_path);
+    }
+
+    for (int j = 0; j < predictions[0].size(); ++j) {
+        auto image = name_vector[j].stem();
+        auto image_name = name_vector[j];
+
+        ImRead(gt_path / path(image.string() + "_segmentation.png"), gt, ImReadMode::GRAYSCALE);
+
+        for (int i = 0; i < n_models; ++i) {
+            images[i] = predictions[i][image_name];
+            ResizeDim(images[i], images[i], { max_size, max_size }, InterpolationType::cubic);
+            iterators[i] = images[i].ContiguousBegin<float>();
+        }
+
+        ResizeDim(gt, gt, { max_size, max_size }, InterpolationType::nearest);
+        dst.Create(gt.dims_, DataType::uint8, "xyc", gt.colortype_);
+
+        auto it_dst = dst.ContiguousBegin<uint8_t>();
+        auto it_gt = gt.ContiguousBegin<uint8_t>();
+        auto e_dst = dst.ContiguousEnd<uint8_t>();
+        double intersection = 0, unions = 0, iou = 0;
+
+        // For each image pixel, calculate its value as the mean of that pixel for all the ensemble models predicted images
+        for (; it_dst != e_dst; ++it_dst, ++it_gt) {
+            float value = 0;
+            for (int i = 0; i < n_models; ++i) {
+                value += *iterators[i];
+                ++iterators[i];
+            }
+            value /= n_models;
+            *it_dst = value > 0.3 ? 255 : 0;
+            intersection += ((*it_gt == 255) && (*it_dst == 255));
+            unions += ((*it_gt == 255) || (*it_dst == 255));
+        }
+
+        iou = (intersection + 1e-06) / (unions + 1e-06);
+        metric_list.push_back(iou);
+        cout << "Ensemble IoU " << image << ": " << iou << " - intersection: " << intersection << " - union: " << unions << endl;
+
+        // Find the CC and if they are more than 2 (lesion and background), remove the pixels of the smaller CC
+        int n_labels = ConnectedComponentsLabeling(dst, labels);
+        ConvertTo(labels, dst, DataType::uint8);
+
+        if (n_labels != 2) {
+            vector<int> label_qty(n_labels);
+            for (it_dst = dst.ContiguousBegin<uint8_t>(), e_dst = dst.ContiguousEnd<uint8_t>(); it_dst != e_dst; ++it_dst) {
+                ++label_qty[*it_dst];
+            }
+
+            auto max = distance(label_qty.begin(), max_element(label_qty.begin() + 1, label_qty.end()));
+
+            for (it_dst = dst.ContiguousBegin<uint8_t>(); it_dst != e_dst; ++it_dst) {
+                if (*it_dst != max) {
+                    *it_dst = 0;
+                }
+                else {
+                    *it_dst = 255;
+                }
+            }
+        }
+        else {
+            Mul(dst, 255, dst);
+        }
+
+        // Calculate again IoU after the post processing
+        intersection = 0;
+        unions = 0;
+        it_dst = dst.ContiguousBegin<uint8_t>(), e_dst = dst.ContiguousEnd<uint8_t>();
+
+        for (it_gt = gt.ContiguousBegin<uint8_t>(); it_dst != e_dst; ++it_dst, ++it_gt) {
+            intersection += ((*it_gt == 255) && (*it_dst == 255));
+            unions += ((*it_gt == 255) || (*it_dst == 255));
+        }
+
+        iou = (intersection + 1e-06) / (unions + 1e-06);
+        cout << "Post processing IoU " << image << ": " << iou << " - intersection: " << intersection << " - union: " << unions << endl;
+        metric_list_postprocessing.push_back(iou);
+
+        if (s.save_images) {
+            ImWrite(s.result_dir / current_path / image_name, dst);
+            ImWrite(s.result_dir / current_path / image_name.replace_extension(".png"), gt);
+        }
+    }
+    auto mean_metric = std::accumulate(metric_list.begin(), metric_list.end(), 0.0) / vsize(metric_list);
+    auto mean_metric_pp = std::accumulate(metric_list_postprocessing.begin(), metric_list_postprocessing.end(), 0.0) / vsize(metric_list_postprocessing);
+    cout << "Ensemble Mean IoU: " << mean_metric << endl;
+    cout << "PostProcessing Mean IoU: " << mean_metric_pp << endl;
+}
+
+void Inference(const string& type, DLDataset& d, const Settings& s, const int num_batches, const int epoch, const path& current_path, double& best_metric, vector<map<path, Image>>& predictions, vector<path>& name_vector, const int model_index = 0)
+{
+    double mean_metric;
     vector<vector<Point2i>> contours;
     Image labels, tmp;
     View<DataType::float32> pred_t, target_t, img_t;
     Eval evaluator;
     ofstream of;
     layer out = getOut(s.net)[0];
+    name_vector.clear();
 
     cout << "Starting " << type << ":" << endl;
     // Resize to batch size if we have done a previous resize
@@ -51,12 +152,22 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
 
         // Compute IoU metric and optionally save the output images
         for (int k = 0; k < current_bs; ++k, ++n) {
+            auto name = samples[k].location_[0].filename();
             unique_ptr<Tensor> pred(output->select({ to_string(k) }));
             TensorToView(pred.get(), pred_t);
             unique_ptr<Tensor> target(y->select({ to_string(k) }));
             TensorToView(target.get(), target_t);
 
-            cout << " - IoU: " << evaluator.BinaryIoU(pred_t, target_t);
+            if (s.ensemble) {
+                name_vector.push_back(name);
+
+                pred_t.colortype_ = ColorType::GRAY;
+                pred_t.channels_ = "xyc";
+
+                predictions[model_index][name] = pred_t;
+            }
+
+            cout << " - IoU " << name << ": " << evaluator.BinaryIoU(pred_t, target_t, 0.3f);
 
             if (s.save_images) {
                 unique_ptr<Tensor> single_image(x->select({ to_string(k) }));
@@ -83,7 +194,7 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
                     }
                 }
 
-                ImWrite(current_path / samples[k].location_[0].filename(), tmp);
+                ImWrite(current_path / name, tmp);
 
                 if (epoch == 0 || type == "test") {
                     target->mult_(255.);
@@ -102,17 +213,19 @@ void Inference(const string& type, DLDataset& d, const Settings& s, const int nu
     cout << "Epoch " << epoch << " - Mean " << type << " IoU: " << mean_metric << endl;
     cout << "----------------------------------------" << endl;
 
-    if (type == "validation") {
-        if (mean_metric > best_metric) {
-            cout << "Saving weights..." << endl;
-            save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
-            best_metric = mean_metric;
+    if (!s.ensemble) {
+        if (type == "validation") {
+            if (mean_metric > best_metric) {
+                cout << "Saving weights..." << endl;
+                save_net_to_onnx_file(s.net, (s.checkpoint_dir / (s.exp_name + "_epoch_" + to_string(epoch) + ".onnx")).string());
+                best_metric = mean_metric;
+            }
         }
-    }
 
-    of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
-    of << "Epoch " << epoch << " - Total " << type << " IoU: " << mean_metric << endl;
-    of.close();
+        of.open(s.exp_name + "_stats.txt", ios::out | ios::app);
+        of << "Epoch " << epoch << " - Total " << type << " IoU: " << mean_metric << endl;
+        of.close();
+    }
 }
 
 int main(int argc, char* argv[])
@@ -127,37 +240,43 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    layer out = getOut(s.net)[0];
-    if (typeid(*out) != typeid(LActivation)) {
-        out = Sigmoid(out);
-        s.net = Model(s.net->lin, { out });
+    if (!s.ensemble) {
+        layer out = getOut(s.net)[0];
+        if (typeid(*out) != typeid(LActivation)) {
+            out = Sigmoid(out);
+            s.net = Model(s.net->lin, { out });
+        }
+
+        // Build model
+        build(s.net,
+            adam(s.lr),      // Optimizer
+            { s.loss },      // Loss
+            { "dice" },      // Metric
+            s.cs,            // Computing Service
+            s.random_weights // Randomly initialize network weights
+        );
+
+        // 343 is the first layer of deeplab without resnet
+        if (s.model == "DeepLabV3Plus" && s.checkpoint_path.empty()) {
+            for (int i = 343; i != s.net->layers.size(); i++)
+                initializeLayer(s.net, s.net->layers[i]->name);
+        }
+
+        // View model
+        summary(s.net);
+        plot(s.net, s.exp_name + ".pdf");
+        setlogfile(s.net, s.exp_name);
     }
-
-    // Build model
-    build(s.net,
-        adam(s.lr),      // Optimizer
-        { s.loss },      // Loss
-        { "dice" },      // Metric
-        s.cs,            // Computing Service
-        s.random_weights // Randomly initialize network weights
-    );
-
-    // 343 is the first layer of deeplab without resnet
-    if (s.model == "DeepLabV3Plus" && s.checkpoint_path.empty()) {
-        for (int i = 343; i != s.net->layers.size(); i++)
-            initializeLayer(s.net, s.net->layers[i]->name);
-    }
-
-    // View model
-    summary(s.net);
-    plot(s.net, s.exp_name + ".pdf");
-    setlogfile(s.net, s.exp_name);
 
     auto training_augs = make_shared<SequentialAugmentationContainer>(
         AugResizeDim(s.size, InterpolationType::cubic),
         AugMirror(.5),
         AugFlip(.5),
         AugRotate({ -180, 180 }, {}, 1.0, InterpolationType::cubic),
+        OneOfAugmentationContainer(0.3, AugElasticTransform({ 34, 40 }, { 2, 4 }, InterpolationType::nearest, BorderType::BORDER_CONSTANT)),
+        OneOfAugmentationContainer(0.5, AugBrightness({ 0.1, 0.2 })),
+        OneOfAugmentationContainer(0.5, AugResizeScale({ 1, 1.5 }, InterpolationType::cubic)),
+        AugCenterCrop(s.size),
         AugAdditivePoissonNoise({ 0, 10 }),
         AugGammaContrast({ .5, 1.5 }),
         AugGaussianBlur({ .0, .8 }),
@@ -189,15 +308,17 @@ int main(int argc, char* argv[])
     int num_batches_validation = d.GetNumBatches(SplitType::validation);
     int num_batches_test = d.GetNumBatches(SplitType::test);
 
-    float best_metric = 0.f, poly_power = 0.9f;
+    double best_metric = 0.;
+    float poly_power = 0.9f;
     int iteration = 0, max_iter = num_batches_training * s.epochs;
     cv::TickMeter tm, tm_epoch;
+    vector<map<path, Image>> predictions_validation, predictions_test;
+    vector<path> name_vector_validation, name_vector_test;
 
-    if (s.save_images) {
-        create_directory(s.result_dir / "validation Ground Truth");
-    }
-
-    if (!s.skip_train) {
+    if (!s.skip_train && !s.ensemble) {
+        if (s.save_images) {
+            create_directory(s.result_dir / "validation Ground Truth");
+        }
         cout << "Starting training" << endl;
         for (int e = s.resume; e < s.epochs; ++e) {
             tm_epoch.reset();
@@ -270,7 +391,7 @@ int main(int argc, char* argv[])
             d.Stop();
 
             set_mode(s.net, TSMODE);
-            Inference("validation", d, s, num_batches_validation, e, current_path, best_metric);
+            Inference("validation", d, s, num_batches_validation, e, current_path, best_metric, predictions_validation, name_vector_validation);
 
             tm_epoch.stop();
             cout << "Epoch elapsed time: " << tm_epoch.getTimeSec() << endl;
@@ -278,13 +399,79 @@ int main(int argc, char* argv[])
     }
 
     int epoch = s.skip_train ? s.resume : s.epochs;
-    auto current_path{ s.result_dir / ("Test - epoch " + to_string(epoch)) };
-    if (s.save_images) {
-        create_directory(current_path);
-        create_directory(s.result_dir / "test Ground Truth");
+    if (!s.ensemble) {
+        auto current_path{ s.result_dir / ("Test - epoch " + to_string(epoch)) };
+        if (s.save_images) {
+            create_directory(current_path);
+            create_directory(s.result_dir / "test Ground Truth");
+        }
+        set_mode(s.net, TSMODE);
+        Inference("test", d, s, num_batches_test, epoch, current_path, best_metric, predictions_test, name_vector_test);
     }
-    set_mode(s.net, TSMODE);
-    Inference("test", d, s, num_batches_test, epoch, current_path, best_metric);
+    else {
+        path gt_path = d.samples_[0].label_path_.value().parent_path();
+        int model_index = 0, max_size = 0;
+
+        for (auto const& entry : directory_iterator{ s.checkpoint_dir }) {
+            auto current_path{ s.result_dir / ("Model " + to_string(model_index)) };
+            if (s.save_images) {
+                create_directories(current_path / "validation");
+                create_directories(current_path / "test");
+            }
+            s.net = import_net_from_onnx_file(entry.path().string());
+            vector<int> size = { s.net->lin[0]->getShape()[2], s.net->lin[0]->getShape()[3] };
+            if (size[0] > max_size) {
+                max_size = size[0];
+            }
+
+            if (entry.path().string().find("deeplabv3plus") != std::string::npos) {
+                auto val_augs = make_shared<SequentialAugmentationContainer>(
+                    AugResizeDim(size, InterpolationType::cubic),
+                    AugToFloat32(255, 255),
+                    AugNormalize({ 0.485, 0.456, 0.406 }, { 0.229, 0.224, 0.225 }) // imagenet stats
+                    );
+                DatasetAugmentations da{ { nullptr, val_augs, val_augs } };
+                d.SetAugmentations(da);
+            }
+            else {
+                auto val_augs = make_shared<SequentialAugmentationContainer>(
+                    AugResizeDim(size, InterpolationType::cubic),
+                    AugToFloat32(255, 255),
+                    AugNormalize({ 0.67501814, 0.5663187, 0.52339128 }, { 0.11092593, 0.10669603, 0.119005 }) // isic stats
+                    );
+                DatasetAugmentations da{ { nullptr, val_augs , val_augs } };
+                d.SetAugmentations(da);
+            }
+
+            d.resize_dims_ = size;
+            d.tensors_shape_.first = { d.batch_size_, d.n_channels_, d.resize_dims_[0], d.resize_dims_[1] };
+            d.tensors_shape_.second = { d.batch_size_, d.n_channels_gt_, d.resize_dims_[0], d.resize_dims_[1] };
+
+            cout << "MODEL: " << entry.path().string() << endl;
+            cout << "INPUT SHAPE: " << size[0] << " - " << size[1] << endl;
+            build(s.net,
+                adam(s.lr),      // Optimizer
+                { s.loss },      // Loss
+                { "dice" },      // Metric
+                CS_GPU(s.gpu, "low_mem"),            // Computing Service
+                false            // Randomly initialize network weights
+            );
+            summary(s.net);
+            predictions_validation.push_back(map<path, Image>());
+            predictions_test.push_back(map<path, Image>());
+            set_mode(s.net, TSMODE);
+            Inference("validation", d, s, num_batches_validation, epoch, current_path / "validation", best_metric, predictions_validation, name_vector_validation, model_index);
+            Inference("test", d, s, num_batches_test, epoch, current_path / "test", best_metric, predictions_test, name_vector_test, model_index);
+            ++model_index;
+
+            delete s.net; s.net = nullptr;
+        }
+        cout << "Starting validation ensemble" << endl;
+        Ensemble(s, "validation", predictions_validation, gt_path, max_size, name_vector_validation);
+
+        cout << "Starting test ensemble" << endl;
+        Ensemble(s, "test", predictions_test, gt_path, max_size, name_vector_test);
+    }
 
     now = chrono::system_clock::to_time_t(chrono::system_clock::now());
     cout << "End at " << ctime(&now) << endl;
